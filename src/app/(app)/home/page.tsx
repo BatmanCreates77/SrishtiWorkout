@@ -82,13 +82,13 @@ export default function Home() {
         </div>
 
         {next ? (
-          <Card className="border-transparent bg-ink text-bg">
+          <div className="rounded-2xl bg-ink p-4 text-bg">
             <div className="text-xs font-semibold uppercase tracking-wide opacity-70">{next.status === "today" ? "Today's workout" : `Next · ${new Date(next.date + "T00:00").toLocaleDateString(undefined, { weekday: "long" })}`}</div>
             <div className="mt-1 text-xl font-bold">{next.title}</div>
             <div className="text-sm opacity-80">{next.focus} · ~{next.estMinutes} min · Week {next.week}{next.week === 4 ? " (deload)" : ""}</div>
             <ul className="mt-3 space-y-0.5 text-sm opacity-90">{next.main.slice(0, 4).map((m) => <li key={m.exerciseId}>{m.name} · {m.sets}×{m.reps}</li>)}</ul>
             <Link href={`/workout/${next.key}`} className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-accent px-4 py-3 font-semibold text-accent-ink">Start workout</Link>
-          </Card>
+          </div>
         ) : cw > 4 ? (
           <Notice tone="accent">Your 4-week block is complete! Retest to measure progress and get your next block. <Link className="font-semibold underline" href="/assessment">Retest</Link></Notice>
         ) : null}
