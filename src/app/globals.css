@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #faf7f4;
+  --surface: #ffffff;
+  --surface-2: #f3eee9;
+  --ink: #1d1a17;
+  --muted: #6f665e;
+  --line: #e7dfd7;
+  --accent: #c8435a;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe7ea;
+  --good: #1f7a5a;
+  --good-soft: #e1f3eb;
+  --warn: #b26a00;
+  --warn-soft: #fdf0dc;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14110f;
+    --surface: #1d1916;
+    --surface-2: #27221e;
+    --ink: #f2ece6;
+    --muted: #a99d92;
+    --line: #352e28;
+    --accent: #ec6a80;
+    --accent-ink: #1a0b0e;
+    --accent-soft: #3a1d23;
+    --good: #5cc79c;
+    --good-soft: #17322a;
+    --warn: #f0b155;
+    --warn-soft: #3a2b14;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--font-geist-sans), system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+input, select, textarea { font-size: 16px; }
