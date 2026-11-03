@@ -75,6 +75,7 @@ export default function ProgressPage() {
         <Link href="/retest" className="flex min-h-13 items-center justify-center rounded-2xl bg-accent font-semibold text-accent-ink">Redo the movement check</Link>
         <Button variant="ghost" onClick={async () => { await reopenOnboarding(); router.replace("/onboarding"); }}>Update my answers with Maya</Button>
         <Button variant="ghost" onClick={() => supabase().auth.signOut()}>Sign out</Button>
+        <a href="/unlock?lock=1" className="flex min-h-12 items-center justify-center rounded-xl text-sm font-semibold text-muted underline">Lock this device (asks for the site password again)</a>
       </div>
       <p className="text-center text-[11px] text-muted">Exercise data: openGym (AGPL) · Demo photos: free-exercise-db (public domain) · Not medical advice.</p>
     </div>
