@@ -34,6 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [coachOpen, setCoachOpen] = useState(false);
   const [prefill, setPrefill] = useState<string | undefined>();
   const [planVersion, setPlanVersion] = useState(0);
+  const [setupDone, setSetupDone] = useState(true);
   const onboarding = path.startsWith("/onboarding");
 
   useEffect(() => {
@@ -45,7 +46,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       // Gate: the app opens only after the coach-led onboarding is complete.
       const { completedAt } = await getOnboarding();
       // (the layout persists across this redirect, so mark ready either way)
-      if (!completedAt && !path.startsWith("/onboarding")) router.replace("/onboarding");
+      // (Settings stays reachable during setup: log out, notifications.)
+      setSetupDone(!!completedAt);
+      if (!completedAt && !path.startsWith("/onboarding") && !path.startsWith("/settings")) router.replace("/onboarding");
       setReady(true);
     });
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full navigation to a route handler
@@ -57,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const open = useCallback((p?: string) => { setPrefill(p); setCoachOpen(true); }, []);
   const bumpPlan = useCallback(() => setPlanVersion((v) => v + 1), []);
   const focus = path.startsWith("/workout/") || path.startsWith("/retest") || path.startsWith("/ask");
-  const showChrome = ready && !onboarding && !focus;
+  const showChrome = ready && !onboarding && !focus && setupDone;
 
   return (
     <Ctx.Provider value={{ open, planVersion, bumpPlan }}>
@@ -122,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
           </>
         )}
-        {ready && !onboarding && <CoachSheet open={coachOpen} prefill={prefill} onClose={() => setCoachOpen(false)} onApplied={bumpPlan} />}
+        {ready && !onboarding && setupDone && <CoachSheet open={coachOpen} prefill={prefill} onClose={() => setCoachOpen(false)} onApplied={bumpPlan} />}
       </div>
     </Ctx.Provider>
   );

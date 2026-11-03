@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NotifySetup } from "@/components/NotifySetup";
 import { cx, Spinner } from "@/components/ui";
-import { getNotifyPrefs, saveNotifyPrefs } from "@/lib/data";
+import { getNotifyPrefs, getOnboarding, saveNotifyPrefs } from "@/lib/data";
 import { DEFAULT_PREFS, disablePush, pushStatus, type NotifyPrefs } from "@/lib/push";
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -37,9 +37,11 @@ export default function SettingsPage() {
   const [prefs, setPrefs] = useState<NotifyPrefs | null>(null);
   const [saved, setSaved] = useState(false);
   const [pushOn, setPushOn] = useState(false);
+  const [inSetup, setInSetup] = useState(false);
   const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     getNotifyPrefs().then((p) => setPrefs(p ? { ...DEFAULT_PREFS, ...p, types: { ...DEFAULT_PREFS.types, ...p.types } } : DEFAULT_PREFS));
+    getOnboarding().then((o) => setInSetup(!o.completedAt)).catch(() => {});
     pushStatus().then((s) => setPushOn(s === "on")).catch(() => {});
   }, []);
 
@@ -64,6 +66,12 @@ export default function SettingsPage() {
   if (!prefs) return <Spinner />;
   return (
     <div className="space-y-8">
+      {inSetup && (
+        <Link href="/onboarding" className="inline-flex min-h-11 items-center gap-1 font-semibold text-accent">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden><path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          Back to setup
+        </Link>
+      )}
       <header className="flex items-end justify-between">
         <h1 className="text-[26px] font-bold leading-tight">Settings</h1>
         <span className="pb-1 text-xs text-good" aria-live="polite">{saved ? "Saved" : ""}</span>
@@ -75,13 +83,13 @@ export default function SettingsPage() {
         </Section>
 
         <div className="space-y-8">
-          <Section title="Coach">
+          {!inSetup && <Section title="Coach">
             <div className="divide-y divide-line rounded-2xl bg-surface">
               <Row href="/ask" label="Answer Maya's questions" hint="The ones she saved for later" />
               <Row href="/retest" label="Redo the movement check" hint="Re-test and update your plan" />
               <Row href="/me" label="Update my answers" hint="Goals, injuries, schedule, equipment" />
             </div>
-          </Section>
+          </Section>}
 
           <Section title="Account">
             <div className="divide-y divide-line rounded-2xl bg-surface">
