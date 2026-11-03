@@ -2,7 +2,8 @@
 // GET  /unlock          → form            GET /unlock?lock=1 → sign this device out
 // POST /unlock          → check password, set the signed session cookie, redirect into the app
 import { NextResponse } from "next/server";
-import { GATE_COOKIE, gateConfigured, makeToken, passwordMatches, safeNext, SESSION_DAYS } from "@/lib/gate";
+import { attachAppSession, clearAppSession } from "@/lib/app-session";
+import { GATE_COOKIE, gateConfigured, makeToken, passwordMatches, safeNext, SESSION_DAYS, verifyToken } from "@/lib/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,11 @@ input{width:100%;font-size:17px;padding:14px 16px;border-radius:14px;border:1px 
 button{margin-top:14px;width:100%;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:700;cursor:pointer}
 .err{background:var(--warn-soft);color:var(--warn);padding:10px 14px;border-radius:12px;font-size:14px;margin-bottom:16px}
 </style></head><body><main>
-<div class="logo">S</div><h1>Srishti Workout</h1><p>This app is private. Enter the password to continue.</p>
+<div class="logo">S</div><h1>Srishti Workout</h1><p>Enter the password to open your workouts.</p>
 ${opts.error ? `<div class="err" role="alert">${esc(opts.error)}</div>` : ""}
 <form method="post" action="/unlock" autocomplete="on">
 <input type="hidden" name="next" value="${esc(opts.next)}">
-<input type="text" name="username" value="srishti-workout" autocomplete="username" hidden>
+<input type="text" name="username" value="Srishti Workout" autocomplete="username" hidden>
 <label for="password">Password</label>
 <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
 <button type="submit">Unlock</button>
@@ -55,6 +56,16 @@ export async function GET(req: Request) {
   if (url.searchParams.has("lock")) {
     const res = NextResponse.redirect(new URL("/unlock", req.url), 303);
     res.cookies.set(GATE_COOKIE, "", { path: "/", maxAge: 0 });
+    clearAppSession(req, res);
+    return res;
+  }
+  // Re-open the app session for an already-unlocked device (e.g. after the Supabase session expired).
+  if (url.searchParams.has("session")) {
+    const next = safeNext(url.searchParams.get("next"));
+    const gate = (req.headers.get("cookie") ?? "").match(new RegExp(`(?:^|; )${GATE_COOKIE}=([^;]+)`))?.[1];
+    if (!(await verifyToken(gate))) return NextResponse.redirect(new URL(`/unlock?next=${encodeURIComponent(next)}`, req.url), 303);
+    const res = NextResponse.redirect(new URL(next, req.url), 303);
+    if (!(await attachAppSession(req, res))) return page({ next, error: "Couldn't open the app. Please try again in a moment.", status: 502 });
     return res;
   }
   if (!gateConfigured()) return page({ next: "/home", error: "The site password hasn't been set up yet (SITE_PASSWORD in Vercel). The app stays locked until it is.", status: 503 });
@@ -84,6 +95,7 @@ export async function POST(req: Request) {
     res.cookies.set(GATE_COOKIE, await makeToken(now), {
       httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: SESSION_DAYS * 86400,
     });
+    if (!(await attachAppSession(req, res))) return page({ next, error: "Password accepted, but the app couldn't open. Please try again in a moment.", status: 502 });
     return res;
   }
 

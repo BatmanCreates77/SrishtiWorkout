@@ -32,14 +32,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const sb = supabase();
     sb.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.replace(`/login?next=${encodeURIComponent(path)}`); return; }
+      // No app session (first visit or expired): the server re-opens it behind the password gate.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- /unlock is a route handler, needs a full navigation
+      if (!data.user) { window.location.href = `/unlock?session=1&next=${encodeURIComponent(path)}`; return; }
       // Gate: the app opens only after the coach-led onboarding is complete.
       const { completedAt } = await getOnboarding();
       // (the layout persists across this redirect, so mark ready either way)
       if (!completedAt && !path.startsWith("/onboarding")) router.replace("/onboarding");
       setReady(true);
     });
-    const { data: sub } = sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") router.replace("/login"); });
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full navigation to a route handler
+    const { data: sub } = sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") window.location.href = "/unlock?lock=1"; });
     return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

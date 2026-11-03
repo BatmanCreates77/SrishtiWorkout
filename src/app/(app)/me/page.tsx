@@ -6,7 +6,6 @@ import { Button, ScoreBar, Spinner } from "@/components/ui";
 import { TRIALS } from "@/lib/coach/skill";
 import { getLatestIntake, listAssessments, reopenOnboarding, type AssessmentRow } from "@/lib/data";
 import type { Intake } from "@/lib/science/types";
-import { supabase } from "@/lib/supabase/client";
 
 const DOMAIN: Record<string, string> = { cardio: "Cardio", upper: "Upper body", lower: "Lower body", core: "Core", mobility: "Flexibility", balance: "Balance", bodyComp: "Body composition" };
 
@@ -14,10 +13,9 @@ export default function ProgressPage() {
   const router = useRouter();
   const [intake, setIntake] = useState<Intake | null | undefined>();
   const [hist, setHist] = useState<AssessmentRow[]>([]);
-  const [email, setEmail] = useState("");
 
   useEffect(() => {
-    Promise.all([getLatestIntake(), listAssessments(), supabase().auth.getUser()]).then(([i, h, u]) => { setIntake(i); setHist(h); setEmail(u.data.user?.email ?? ""); });
+    Promise.all([getLatestIntake(), listAssessments()]).then(([i, h]) => { setIntake(i); setHist(h); });
   }, []);
   if (intake === undefined) return <Spinner />;
 
@@ -26,7 +24,7 @@ export default function ProgressPage() {
     <div className="space-y-5">
       <header>
         <h1 className="text-[26px] font-bold leading-tight">Progress</h1>
-        <p className="text-sm text-muted">{intake?.name} · {email}</p>
+        <p className="text-sm text-muted">{intake?.name}</p>
       </header>
 
       {last && (
@@ -74,8 +72,7 @@ export default function ProgressPage() {
       <div className="grid gap-2">
         <Link href="/retest" className="flex min-h-13 items-center justify-center rounded-2xl bg-accent font-semibold text-accent-ink">Redo the movement check</Link>
         <Button variant="ghost" onClick={async () => { await reopenOnboarding(); router.replace("/onboarding"); }}>Update my answers with Maya</Button>
-        <Button variant="ghost" onClick={() => supabase().auth.signOut()}>Sign out</Button>
-        <a href="/unlock?lock=1" className="flex min-h-12 items-center justify-center rounded-xl text-sm font-semibold text-muted underline">Lock this device (asks for the site password again)</a>
+        <a href="/unlock?lock=1" className="flex min-h-12 items-center justify-center rounded-2xl border border-line font-semibold">Lock this device</a>
       </div>
       <p className="text-center text-[11px] text-muted">Exercise data: openGym (AGPL) · Demo photos: free-exercise-db (public domain) · Not medical advice.</p>
     </div>
