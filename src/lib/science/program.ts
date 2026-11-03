@@ -156,7 +156,7 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: Progra
   const templates = split.days.map((k, i) => ({ ...T[k], key: k, idx: i }));
   const baseSessions = templates.map((t) => {
     const used = new Set<string>();
-    let slots = [...t.slots];
+    const slots = [...t.slots];
     // her stated focus areas and milestones get a slot early in the session
     for (const e of cons.emphasis) for (const p of EMPHASIS_SLOTS[e] ?? []) {
       const lowerDay = t.key.startsWith("L"), upperDay = t.key.startsWith("U");

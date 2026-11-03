@@ -61,6 +61,7 @@ export function buildContext(s: CoachState): string {
     `HEALTH: PAR-Q flags: ${Object.entries(it.parq).filter(([, v]) => v).map(([k]) => k).join(", ") || "none"}. Pregnancy: ${it.pregnancy}. Injuries: ${it.injuries || "none"}. Pain areas: ${it.painAreas.join(", ") || "none"}.`,
     `LIFESTYLE: sleep ${it.sleepHours} h (quality ${it.sleepQuality}/5), stress ${it.stress}/5, energy ${it.energy}/5.`,
     `DIET: ${it.dietPattern}, ${it.mealsPerDay} meals, ~${it.proteinPalms} palm protein portions/day, veg ${it.vegServings}, fruit ${it.fruitServings}, water ${it.waterLiters} L, sugary drinks ${it.sugaryDrinksPerWeek}/wk, alcohol ${it.alcoholPerWeek}/wk, fried/packaged ${it.friedOrPackagedPerWeek}/wk.`,
+    ...extraLines(it),
   );
   const an = s.analysis;
   if (!an) lines.push("ASSESSMENT: not done yet. Encourage her to do the fitness tests.");
@@ -82,7 +83,9 @@ export function buildContext(s: CoachState): string {
       `PROGRAM: ${plan.split}, ${plan.createdFor.daysPerWeek} days/wk, started ${s.program.start_date}, intensity offset ${plan.intensityOffset}. Current week ${f.week > 4 ? "block finished (offer retest or next block)" : `${f.week} of 4${f.week === 4 ? " (deload)" : ""}`}.`,
       `CARDIO: ${plan.cardio.sessionsPerWeek}×${plan.cardio.minutes} min ${plan.cardio.type}; step goal ${plan.cardio.stepGoal}.`,
       `ADHERENCE (14 days): ${f.adh.done}/${f.adh.due} done, ${f.adh.skipped} skipped, ${f.adh.missed} missed (${f.adh.rate}%). Days since last workout: ${f.sinceLast ?? "never trained in app"}.`,
-      f.next ? `NEXT SESSION: ${f.next.title} on ${f.next.date} (${f.next.main.map((m) => `${m.name} ${m.sets}×${m.reps}`).join(", ")}).` : "NEXT SESSION: none scheduled.",
+      f.next ? `NEXT SESSION: ${f.next.title} on ${f.next.date} (${f.next.main.map((m) => `${m.name} [id ${m.exerciseId}] ${m.sets}×${m.reps}`).join(", ")}).` : "NEXT SESSION: none scheduled.",
+      plan.why?.length ? `WHY THIS PLAN: ${plan.why.join(" | ")}` : "",
+      plan.constraints ? `PLAN LIMITS: avoid tags [${plan.constraints.excludeTags.join(", ") || "none"}], avoid ids [${plan.constraints.excludeIds.join(", ") || "none"}]` : "",
     );
     const recent = s.recentLogs.slice(0, 6).map((l) => {
       const entries = (l.entries as LogEntry[] | undefined) ?? [];
@@ -92,6 +95,17 @@ export function buildContext(s: CoachState): string {
     lines.push(`RECENT LOGS: ${recent.join(" | ") || "none"}`);
   }
   return lines.filter(Boolean).join("\n");
+}
+
+/** Her onboarding answers that aren't core fields, her own words, and coach follow-ups. */
+export function extraLines(it: Intake): string[] {
+  const out: string[] = [];
+  const ex = Object.entries(it.extras ?? {}).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("/") : String(v)}`);
+  if (ex.length) out.push(`OTHER ANSWERS: ${ex.join("; ")}`);
+  const notes = Object.entries(it.notes ?? {}).map(([k, v]) => `${k}: "${v}"`);
+  if (notes.length) out.push(`IN HER OWN WORDS: ${notes.join("; ")}`);
+  if (it.followups?.length) out.push(`COACH FOLLOW-UPS: ${it.followups.map((f) => `Q "${f.ask}" A "${f.answer}"`).join("; ")}`);
+  return out;
 }
 
 export function checkinFacts(s: CoachState): string {

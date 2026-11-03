@@ -5,11 +5,11 @@ import { useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 const FEATURES = [
-  { t: "Coach-grade intake", d: "Health screen (PAR-Q+), training history, goals, recovery and an honest diet snapshot." },
-  { t: "Real fitness tests", d: "10 validated field tests with guided timers: push-ups, plank, squat, step test, VO2max walk and more." },
-  { t: "Scored against norms", d: "Your results rated against published age/sex norms, plus a nutrition analysis with protein and calorie targets." },
-  { t: "A plan built for you", d: "4-week periodised program matched to your level, goal, schedule and equipment, with a deload built in." },
-  { t: "AI coach that checks in", d: "Coach Maya knows your plan and logs, notices missed days and adjusts your program when life happens." },
+  { t: "Maya gets to know you", d: "A friendly coach asks about your goals, health, schedule, equipment and food, one question at a time, in your own words." },
+  { t: "A quick movement check", d: "Six simple exercises show where you're starting. Struggled with one? Maya swaps in an easier version on the spot." },
+  { t: "A plan curated for you", d: "4 weeks of workouts built around your answers and your results, including injuries, likes and dislikes." },
+  { t: "Just open and train", d: "Today's workout, step by step with demos, timers and last time's numbers." },
+  { t: "Maya adjusts when life happens", d: "Missed a few days? Feeling strong? Tell Maya and approve the change in one tap." },
 ];
 
 export default function Landing() {
@@ -22,7 +22,7 @@ export default function Landing() {
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
       <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-accent text-xl font-black text-accent-ink">O</div>
       <h1 className="text-4xl font-black leading-tight tracking-tight">Train smarter,<br />with a coach in your pocket.</h1>
-      <p className="mt-4 text-lg text-muted">OpenGym Coach assesses where you are, builds a science-based plan for where you want to go, and coaches you every day in between.</p>
+      <p className="mt-4 text-lg text-muted">Srishti Workout assesses where you are, builds a science-based plan for where you want to go, and coaches you every day in between.</p>
       <div className="mt-8 flex gap-3">
         <Link href="/login" className="rounded-xl bg-accent px-6 py-3 font-semibold text-accent-ink">Get started</Link>
       </div>

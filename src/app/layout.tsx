@@ -6,9 +6,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "OpenGym Coach",
+  title: "Srishti Workout",
   description: "Science-based fitness assessment, personalised training and an AI coach.",
-  appleWebApp: { capable: true, title: "OpenGym Coach", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Srishti Workout", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

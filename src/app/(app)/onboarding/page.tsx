@@ -1,189 +1,391 @@
 "use client";
+/* eslint-disable react-hooks/refs -- stRef is only read inside event handlers collected in the `cta` object, never during render. */
+// Coach-led onboarding: adaptive questions (+ AI follow-ups) → movement check → optional health checks
+// → coach analysis → curated plan. Everything it asks comes from the coach skill (coach-skill/content).
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-import { Button, Chips, inputCls, Label, Notice, NumberInput, Scale, Spinner } from "@/components/ui";
-import { getLatestIntake, saveIntake } from "@/lib/data";
-import { PARQ_QUESTIONS } from "@/lib/science/analysis";
-import { EQUIPMENT_OPTIONS, GYM_EQUIPMENT } from "@/lib/science/patterns";
-import type { Intake } from "@/lib/science/types";
-import { supabase } from "@/lib/supabase/client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CoachAvatar, CoachBubble } from "@/components/CoachBubble";
+import { ExerciseMedia } from "@/components/ExerciseMedia";
+import { QuestionScreen } from "@/components/QuestionScreen";
+import { Timer } from "@/components/Timer";
+import { emptyTrial, TrialScreen, trialComplete } from "@/components/TrialScreen";
+import { Button, cx, MiniMarkdown, Notice, ScoreBar, Spinner } from "@/components/ui";
+import { HEALTH_TESTS, SECTIONS, skill, TRIALS, type Question } from "@/lib/coach/skill";
+import {
+  activateProgram, completeOnboarding, getOnboarding, saveAssessment, saveIntake, saveOnboarding, type OnboardingState,
+} from "@/lib/data";
+import { answersToIntake, canContinue, fill, reaction, visibleQuestions, type Answer } from "@/lib/onboarding";
+import { buildFromOnboarding, type Built } from "@/lib/plan-builder";
+import { programBlocked } from "@/lib/science/analysis";
+import { toISODate } from "@/lib/science/schedule";
+import type { TestResults, TrialResult } from "@/lib/science/types";
 
-const DEFAULTS: Partial<Intake> = {
-  sex: "female", parq: {}, pregnancy: "no", injuries: "", painAreas: [], trainingAge: 0, currentDaysPerWeek: 0,
-  currentActivities: [], dailySteps: "3to6k", jobActivity: "sedentary", primaryGoal: "general", secondaryGoal: "",
-  goalNote: "", daysPerWeek: 3, preferredDays: [], sessionMinutes: 45, location: "home", equipment: [],
-  sleepHours: 7, sleepQuality: 3, stress: 3, energy: 3, dietPattern: "vegetarian", mealsPerDay: 3, proteinPalms: 2,
-  vegServings: 2, fruitServings: 1, waterLiters: 2, sugaryDrinksPerWeek: 2, alcoholPerWeek: 0, friedOrPackagedPerWeek: 3,
-  lateEating: false, supplements: [],
-};
+type FollowUp = { section: string; ask: string; options: string[] };
+const MAX_FOLLOWUPS = 2;
+const STAGES = [
+  { id: "questions", label: "Get to know you" },
+  { id: "trials", label: "Movement check" },
+  { id: "plan", label: "Your plan" },
+] as const;
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const STEPS = ["About you", "Health check", "Activity", "Goals", "Schedule & equipment", "Recovery", "Nutrition"];
-
-function Q({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
-  return <div className="space-y-1"><Label hint={hint}>{label}</Label>{children}</div>;
-}
-
-export default function Onboarding() {
+export default function OnboardingPage() {
   const router = useRouter();
-  const [d, setD] = useState<Partial<Intake> | null>(null);
-  const [step, setStep] = useState(0);
+  const [st, setSt] = useState<OnboardingState | null>(null);
+  const [qid, setQid] = useState<string | null>(null);
+  const [followUp, setFollowUp] = useState<FollowUp | null>(null);
+  const [fuAnswer, setFuAnswer] = useState<Answer>({});
+  const [thinking, setThinking] = useState(false);
+  const [lastReaction, setLastReaction] = useState<string | null>(null);
+  const [built, setBuilt] = useState<Built | null>(null);
+  const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [saving, setSaving] = useState(false);
-  const set = <K extends keyof Intake>(k: K, v: Intake[K]) => setD((p) => ({ ...p, [k]: v }));
+  const stRef = useRef<OnboardingState | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // load + resume
   useEffect(() => {
-    (async () => {
-      const existing = await getLatestIntake();
-      const { data } = await supabase().auth.getUser();
-      setD(existing ?? { ...DEFAULTS, name: (data.user?.user_metadata?.display_name as string) ?? "" });
-    })();
+    getOnboarding().then(({ state, completedAt }) => {
+      if (completedAt) { router.replace("/home"); return; }
+      const s = { stage: "questions" as const, ...state };
+      stRef.current = s; setSt(s);
+      const vis = visibleQuestions(s.answers);
+      setQid(vis.find((q) => q.id === (state as { qid?: string }).qid)?.id ?? vis[0].id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!d) return <Spinner />;
+  const update = useCallback((patch: Partial<OnboardingState> & { qid?: string }) => {
+    const next = { ...stRef.current!, ...patch };
+    stRef.current = next; setSt(next);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveOnboarding(next).catch(() => {}), 400);
+  }, []);
 
-  function validate(): string {
-    if (step === 0) {
-      if (!d!.name) return "Please enter your name.";
-      if (!d!.age || d!.age < 14 || d!.age > 90) return "Please enter an age between 14 and 90.";
-      if (!d!.heightCm || d!.heightCm < 120 || d!.heightCm > 220) return "Please enter your height in cm.";
-      if (!d!.weightKg || d!.weightKg < 30 || d!.weightKg > 250) return "Please enter your weight in kg.";
+  // rebuild the plan when resuming on the analysis/plan screens
+  const resumeStage = st?.stage;
+  useEffect(() => {
+    if ((resumeStage === "analysis" || resumeStage === "plan") && !built && stRef.current) {
+      const s = stRef.current;
+      try { setBuilt(buildFromOnboarding(s.answers, s.trials, s.health, s.followups)); } catch (e) { setErr((e as Error).message); }
     }
-    if (step === 1 && PARQ_QUESTIONS.some((q) => d!.parq?.[q.key] === undefined)) return "Please answer every health question.";
-    if (step === 4 && d!.preferredDays!.length && d!.preferredDays!.length !== d!.daysPerWeek)
-      return `Pick exactly ${d!.daysPerWeek} preferred days, or clear them to let the coach choose.`;
-    return "";
+  }, [resumeStage, built]);
+
+  if (!st || !qid) return <Spinner />;
+  const stage = st.stage ?? "questions";
+  const visible = visibleQuestions(st.answers);
+  const q = visible.find((x) => x.id === qid) ?? visible[0];
+  const qPos = visible.indexOf(q);
+  const sectionIdx = SECTIONS.findIndex((s) => s.id === q.section);
+
+  // ---- question flow ----------------------------------------------------------
+  const setAnswer = (a: Answer) => update({ answers: { ...stRef.current!.answers, [q.id]: a } });
+
+  async function maybeFollowUp(section: string): Promise<FollowUp | null> {
+    const s = stRef.current!;
+    const count = s.followupCount?.[section] ?? 0;
+    if (count >= MAX_FOLLOWUPS) return null;
+    const qs = visibleQuestions(s.answers).filter((x) => x.section === section && x.kind !== "info");
+    const hasFree = qs.some((x) => s.answers[x.id]?.text?.trim());
+    if (!qs.some((x) => x.probe) && !hasFree) return null;
+    const label = (x: Question) => {
+      const a = s.answers[x.id];
+      if (!a) return "(skipped)";
+      const opt = (v: unknown) => x.options?.find((o) => o.value === v)?.label ?? String(v);
+      const vals = Array.isArray(a.value) ? a.value.map(opt).join(", ") : a.value !== undefined ? opt(a.value) : "";
+      return [vals, a.text?.trim()].filter(Boolean).join(" | ") || "(no answer)";
+    };
+    const intake = answersToIntake(s.answers);
+    try {
+      setThinking(true);
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 12000);
+      const res = await fetch("/api/coach/followup", {
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: ctl.signal,
+        body: JSON.stringify({
+          section,
+          qa: [...qs.map((x) => ({ q: fill(x.coach, s.answers), a: label(x) })),
+            ...s.followups.filter((f) => f.section === section).map((f) => ({ q: f.ask, a: f.answer }))],
+          profile: `${intake.name || "user"}, ${intake.age}y ${intake.sex}, goal ${intake.primaryGoal}, pain: ${intake.painAreas.join("/") || "none"}`,
+          asked: s.followups.map((f) => f.ask),
+        }),
+      });
+      clearTimeout(t);
+      const j = await res.json();
+      return j.ask ? { section, ask: j.ask, options: j.options ?? [] } : null;
+    } catch { return null; } finally { setThinking(false); }
   }
 
   async function next() {
-    const e = validate();
-    setErr(e);
-    if (e) return;
-    if (step < STEPS.length - 1) { setStep(step + 1); window.scrollTo(0, 0); return; }
-    setSaving(true);
-    try {
-      await saveIntake({ ...(DEFAULTS as Intake), ...(d as Intake) });
-      router.push("/assessment");
-    } catch (x) {
-      setErr((x as Error).message);
-      setSaving(false);
+    const s = stRef.current!;
+    const cur = visibleQuestions(s.answers).find((x) => x.id === qid)!;
+    if (!canContinue(cur, s.answers[cur.id])) return;
+    const vis = visibleQuestions(s.answers);
+    const nq = vis[vis.indexOf(cur) + 1];
+    setLastReaction(reaction(cur, s.answers[cur.id]));
+    // end of a section → maybe one tailored follow-up from the coach
+    if (!nq || nq.section !== cur.section) {
+      const fu = await maybeFollowUp(cur.section);
+      if (fu) { setFollowUp(fu); setFuAnswer({}); return; }
     }
+    if (nq) { setQid(nq.id); update({ qid: nq.id }); window.scrollTo(0, 0); }
+    else { update({ stage: "trial-intro" }); window.scrollTo(0, 0); }
   }
 
+  async function answerFollowUp() {
+    if (!followUp) return;
+    const ans = [fuAnswer.value, fuAnswer.text?.trim()].filter(Boolean).join(" | ");
+    if (!ans) return;
+    const s = stRef.current!;
+    const counts = { ...(s.followupCount ?? {}), [followUp.section]: (s.followupCount?.[followUp.section] ?? 0) + 1 };
+    update({ followups: [...s.followups, { section: followUp.section, ask: followUp.ask, answer: ans }], followupCount: counts });
+    setLastReaction(null);
+    const fu = await maybeFollowUp(followUp.section);
+    if (fu) { setFollowUp(fu); setFuAnswer({}); return; }
+    setFollowUp(null);
+    const vis = visibleQuestions(stRef.current!.answers);
+    const nq = vis[vis.indexOf(vis.find((x) => x.id === qid)!) + 1];
+    if (nq) { setQid(nq.id); update({ qid: nq.id }); } else update({ stage: "trial-intro" });
+    window.scrollTo(0, 0);
+  }
+
+  function back() {
+    if (followUp) { setFollowUp(null); return; }
+    if (stage === "trial-intro") { update({ stage: "questions" }); return; }
+    if (stage === "trials") {
+      const i = st!.trialIndex ?? 0;
+      update(i > 0 ? { trialIndex: i - 1 } : { stage: "trial-intro" }); return;
+    }
+    if (stage === "health") { update({ stage: "trials", trialIndex: TRIALS.length - 1 }); return; }
+    if (stage === "analysis" || stage === "plan") { update({ stage: "health" }); return; }
+    if (qPos > 0) { setLastReaction(null); setQid(visible[qPos - 1].id); update({ qid: visible[qPos - 1].id }); }
+  }
+
+  // ---- trials --------------------------------------------------------------------
+  const trialIdx = st.trialIndex ?? 0;
+  const trial = TRIALS[trialIdx];
+  const trialResult: TrialResult = st.trials.find((r) => r.id === trial?.id) ?? (trial ? emptyTrial(trial) : (undefined as never));
+  const setTrial = (r: TrialResult) => update({ trials: [...stRef.current!.trials.filter((x) => x.id !== r.id), r] });
+
+  // ---- analysis + plan ---------------------------------------------------------------
+  async function buildPlan() {
+    setBusy(true); setErr("");
+    try {
+      const s = stRef.current!;
+      const b = buildFromOnboarding(s.answers, s.trials, s.health, s.followups);
+      setBuilt(b);
+      update({ stage: "analysis" });
+      window.scrollTo(0, 0);
+      if (!s.summary) {
+        const res = await fetch("/api/coach/analysis", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ intake: b.intake, analysis: b.analysis, trials: s.trials, program: { split: b.program.split, why: b.program.why, weeks: [b.program.weeks[0]] } }),
+        }).catch(() => null);
+        const j = res?.ok ? await res.json() : null;
+        update({ summary: j?.summary ?? "" });
+      }
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+
+  async function startTraining() {
+    if (!built) return;
+    setBusy(true); setErr("");
+    try {
+      await saveIntake(built.intake);
+      await saveAssessment(built.results, built.analysis);
+      await activateProgram(built.program, toISODate(new Date()), "onboarding");
+      await completeOnboarding();
+      router.replace("/home?welcome=1");
+    } catch (e) { setErr((e as Error).message); setBusy(false); }
+  }
+
+  const stageIdx = stage === "questions" ? 0 : stage === "trial-intro" || stage === "trials" || stage === "health" ? 1 : 2;
+  const progress = stage === "questions" ? (sectionIdx + 1) / SECTIONS.length
+    : stage === "trial-intro" ? 0.05 : stage === "trials" ? (trialIdx + 1) / (TRIALS.length + 1) : stage === "health" ? 0.95 : 1;
+
+  // ---- footer button for each stage --------------------------------------------------------
+  let cta: { label: string; onClick: () => void; disabled?: boolean; secondary?: { label: string; onClick: () => void } } | null = null;
+  if (followUp) cta = { label: "Continue", onClick: answerFollowUp, disabled: !fuAnswer.value && !fuAnswer.text?.trim(), secondary: { label: "Skip", onClick: () => { setFuAnswer({ text: "(skipped)" }); setFollowUp(null); const vis = visibleQuestions(st.answers); const nq = vis[vis.indexOf(q) + 1]; if (nq) { setQid(nq.id); update({ qid: nq.id }); } else update({ stage: "trial-intro" }); } } };
+  else if (stage === "questions") cta = q.kind === "single" || q.kind === "scale" || q.kind === "scale10"
+    ? (st.answers[q.id]?.text?.trim() || st.answers[q.id]?.value !== undefined ? { label: "Continue", onClick: next, disabled: !canContinue(q, st.answers[q.id]) } : !q.required ? { label: "Skip", onClick: next } : null)
+    : { label: q.kind === "info" ? "Let's start" : st.answers[q.id] || !q.optional ? "Continue" : "Skip", onClick: next, disabled: !canContinue(q, st.answers[q.id]) };
+  else if (stage === "trial-intro") cta = { label: "I'm warmed up, let's go", onClick: () => update({ stage: "trials", trialIndex: 0 }) };
+  else if (stage === "trials") cta = {
+    label: trialIdx < TRIALS.length - 1 ? "Next exercise" : "Done with the movement check",
+    disabled: !trialComplete(trialResult),
+    onClick: () => { if (!st.trials.find((x) => x.id === trialResult.id)) setTrial(trialResult); update(trialIdx < TRIALS.length - 1 ? { trialIndex: trialIdx + 1 } : { stage: "health" }); window.scrollTo(0, 0); },
+  };
+  else if (stage === "health") cta = { label: busy ? "Building your plan…" : "See my results", onClick: buildPlan, disabled: busy };
+  else if (stage === "analysis") cta = { label: "Show me my plan", onClick: () => { update({ stage: "plan" }); window.scrollTo(0, 0); } };
+  else if (stage === "plan") cta = { label: busy ? "Saving…" : "Start training", onClick: startTraining, disabled: busy || !!(built && programBlocked(built.intake)) };
+
   return (
-    <div>
-      <div className="mb-5">
-        <div className="mb-2 flex justify-between text-xs font-medium text-muted"><span>Step {step + 1} of {STEPS.length}</span><span>{STEPS[step]}</span></div>
-        <div className="h-1.5 rounded-full bg-surface-2"><div className="h-full rounded-full bg-accent transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} /></div>
-      </div>
-      <h1 className="mb-1 text-2xl font-bold">{STEPS[step]}</h1>
-      <p className="mb-6 text-sm text-muted">
-        {["The basics your coach needs to use the right norms and targets.", "A standard pre-exercise screen (PAR-Q+). Answer honestly, it keeps you safe.", "Where you are starting from today.", "What success looks like for you.", "We build the plan around your real life.", "Recovery drives results as much as training does.", "No judgement, just a snapshot of a typical day. Estimates are fine."][step]}
-      </p>
-
-      <div className="space-y-6">
-        {step === 0 && (<>
-          <Q label="Name"><input className={inputCls} value={d.name ?? ""} onChange={(e) => set("name", e.target.value)} /></Q>
-          <div className="grid grid-cols-2 gap-3">
-            <Q label="Age"><NumberInput value={d.age} onChange={(v) => set("age", v!)} suffix="yrs" /></Q>
-            <Q label="Sex (for norms)"><Chips options={[{ value: "female", label: "Female" }, { value: "male", label: "Male" }]} value={d.sex} onChange={(v) => set("sex", v as Intake["sex"])} /></Q>
+    <div className="flex min-h-dvh flex-col">
+      {/* top bar */}
+      <div className="sticky top-0 z-10 -mx-4 bg-bg/95 px-4 pb-3 pt-[max(12px,env(safe-area-inset-top))] backdrop-blur">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={back} aria-label="Back" className={cx("grid h-10 w-10 place-items-center rounded-full border border-line", stage === "questions" && qPos === 0 && !followUp && "invisible")}>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="flex justify-between text-xs font-medium text-muted">
+              <span>{STAGES[stageIdx].label}</span>
+              <span>{stage === "questions" ? SECTIONS[sectionIdx]?.title : stage === "trials" ? `${trialIdx + 1} of ${TRIALS.length}` : ""}</span>
+            </div>
+            <div className="mt-1.5 grid grid-cols-3 gap-1">
+              {STAGES.map((s, i) => (
+                <div key={s.id} className="h-1.5 overflow-hidden rounded-full bg-surface-2">
+                  <div className="h-full rounded-full bg-accent transition-all" style={{ width: i < stageIdx ? "100%" : i === stageIdx ? `${Math.max(6, progress * 100)}%` : "0%" }} />
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Q label="Height"><NumberInput value={d.heightCm} onChange={(v) => set("heightCm", v!)} suffix="cm" /></Q>
-            <Q label="Weight"><NumberInput value={d.weightKg} onChange={(v) => set("weightKg", v!)} step={0.1} suffix="kg" /></Q>
-          </div>
-          <Q label="Waist (optional)" hint="At belly-button level. You can also measure it during the tests."><NumberInput value={d.waistCm} onChange={(v) => set("waistCm", v)} suffix="cm" /></Q>
-        </>)}
-
-        {step === 1 && (<>
-          {PARQ_QUESTIONS.map((q) => (
-            <Q key={q.key} label={q.text}>
-              <Chips options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]}
-                value={d.parq?.[q.key] === undefined ? undefined : d.parq[q.key] ? "yes" : "no"}
-                onChange={(v) => set("parq", { ...d.parq, [q.key]: v === "yes" })} />
-            </Q>
-          ))}
-          {d.sex === "female" && (
-            <Q label="Pregnancy / postpartum">
-              <Chips options={[{ value: "no", label: "Neither" }, { value: "pregnant", label: "Pregnant" }, { value: "postpartum_lt12w", label: "Postpartum < 12 weeks" }, { value: "postpartum_gt12w", label: "Postpartum > 12 weeks" }]}
-                value={d.pregnancy} onChange={(v) => set("pregnancy", v as Intake["pregnancy"])} />
-            </Q>
-          )}
-          <Q label="Any pain right now or during exercise?">
-            <Chips multi options={["neck", "shoulder", "elbow/wrist", "upper back", "lower back", "hip", "knee", "ankle/foot", "pelvic floor"].map((x) => ({ value: x, label: x }))}
-              value={d.painAreas} onChange={(v) => set("painAreas", v as string[])} />
-          </Q>
-          <Q label="Past injuries, surgeries or conditions (optional)"><textarea className={inputCls} rows={2} value={d.injuries} onChange={(e) => set("injuries", e.target.value)} placeholder="e.g. ACL repair 2019, mild scoliosis, PCOS, thyroid…" /></Q>
-          {Object.values(d.parq ?? {}).some(Boolean) && <Notice>You answered yes to a screening question. You can continue, but please get clearance from a doctor before the harder tests and vigorous training. Your plan will start conservatively.</Notice>}
-        </>)}
-
-        {step === 2 && (<>
-          <Q label="Strength-training experience">
-            <Chips options={[{ value: 0, label: "None" }, { value: 1, label: "< 6 months" }, { value: 2, label: "6–24 months" }, { value: 3, label: "2+ years" }]} value={d.trainingAge} onChange={(v) => set("trainingAge", v as Intake["trainingAge"])} />
-          </Q>
-          <Q label="How many days a week do you exercise now?"><Chips options={[0, 1, 2, 3, 4, 5, 6, 7].map((n) => ({ value: n, label: String(n) }))} value={d.currentDaysPerWeek} onChange={(v) => set("currentDaysPerWeek", v as number)} /></Q>
-          <Q label="What do you currently do?">
-            <Chips multi options={["walking", "running", "gym weights", "home workouts", "yoga", "pilates", "dance / zumba", "cycling", "swimming", "sports"].map((x) => ({ value: x, label: x }))} value={d.currentActivities} onChange={(v) => set("currentActivities", v as string[])} />
-          </Q>
-          <Q label="Typical daily steps"><Chips options={[{ value: "lt3k", label: "< 3k" }, { value: "3to6k", label: "3–6k" }, { value: "6to9k", label: "6–9k" }, { value: "gt9k", label: "9k+" }]} value={d.dailySteps} onChange={(v) => set("dailySteps", v as Intake["dailySteps"])} /></Q>
-          <Q label="Your day job is mostly…"><Chips options={[{ value: "sedentary", label: "Sitting" }, { value: "light", label: "On my feet sometimes" }, { value: "active", label: "Physically active" }]} value={d.jobActivity} onChange={(v) => set("jobActivity", v as Intake["jobActivity"])} /></Q>
-        </>)}
-
-        {step === 3 && (() => {
-          const goals = [{ value: "fat_loss", label: "Lose fat" }, { value: "muscle", label: "Tone & build muscle" }, { value: "strength", label: "Get stronger" }, { value: "endurance", label: "Stamina & endurance" }, { value: "general", label: "Overall health & energy" }, { value: "mobility", label: "Mobility & posture" }];
-          return (<>
-            <Q label="Main goal"><Chips options={goals} value={d.primaryGoal} onChange={(v) => set("primaryGoal", v as Intake["primaryGoal"])} /></Q>
-            <Q label="Secondary goal (optional)"><Chips options={[{ value: "", label: "None" }, ...goals.filter((g) => g.value !== d.primaryGoal)]} value={d.secondaryGoal ?? ""} onChange={(v) => set("secondaryGoal", v as Intake["secondaryGoal"])} /></Q>
-            <Q label="In your words: what would make the next 3 months a win?"><textarea className={inputCls} rows={3} value={d.goalNote} onChange={(e) => set("goalNote", e.target.value)} placeholder="e.g. do 5 real push-ups, fit into my old jeans, play with my kids without getting tired…" /></Q>
-          </>);
-        })()}
-
-        {step === 4 && (<>
-          <Q label="Training days per week"><Chips options={[2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) }))} value={d.daysPerWeek} onChange={(v) => { set("daysPerWeek", v as number); set("preferredDays", []); }} /></Q>
-          <Q label="Preferred days (optional)" hint={`Pick ${d.daysPerWeek}, or leave empty for a balanced default.`}>
-            <Chips multi options={DAYS.map((x, i) => ({ value: i, label: x }))} value={d.preferredDays} onChange={(v) => set("preferredDays", v as number[])} />
-          </Q>
-          <Q label="Time per session"><Chips options={[30, 45, 60, 75].map((n) => ({ value: n, label: `${n} min` }))} value={d.sessionMinutes} onChange={(v) => set("sessionMinutes", v as number)} /></Q>
-          <Q label="Where will you train?">
-            <Chips options={[{ value: "home", label: "Home" }, { value: "gym", label: "Gym" }, { value: "both", label: "Both" }]} value={d.location}
-              onChange={(v) => { set("location", v as Intake["location"]); if (v !== "home") set("equipment", GYM_EQUIPMENT); }} />
-          </Q>
-          <Q label="Equipment you can use" hint="Bodyweight is always included.">
-            <Chips multi options={EQUIPMENT_OPTIONS.map((e) => ({ value: e.key, label: e.label }))} value={d.equipment} onChange={(v) => set("equipment", v as Intake["equipment"])} />
-          </Q>
-        </>)}
-
-        {step === 5 && (<>
-          <Q label="Average sleep per night"><NumberInput value={d.sleepHours} onChange={(v) => set("sleepHours", v!)} step={0.5} suffix="hours" /></Q>
-          <Q label="Sleep quality"><Scale value={d.sleepQuality} onChange={(v) => set("sleepQuality", v)} low="Poor" high="Great" /></Q>
-          <Q label="Stress level"><Scale value={d.stress} onChange={(v) => set("stress", v)} low="Calm" high="Very stressed" /></Q>
-          <Q label="Daily energy"><Scale value={d.energy} onChange={(v) => set("energy", v)} low="Drained" high="Energetic" /></Q>
-        </>)}
-
-        {step === 6 && (<>
-          <Q label="Diet pattern"><Chips options={[{ value: "vegetarian", label: "Vegetarian" }, { value: "eggetarian", label: "Eggetarian" }, { value: "non_vegetarian", label: "Non-veg" }, { value: "pescatarian", label: "Pescatarian" }, { value: "vegan", label: "Vegan" }]} value={d.dietPattern} onChange={(v) => set("dietPattern", v as Intake["dietPattern"])} /></Q>
-          <Q label="Meals per day (incl. snacks)"><Chips options={[2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) }))} value={d.mealsPerDay} onChange={(v) => set("mealsPerDay", v as number)} /></Q>
-          <Q label="Palm-sized protein portions per day" hint="1 palm ≈ 100 g paneer/chicken/tofu, 2 eggs, 1 big bowl of curd, 1 scoop whey, ~1.5 bowls of dal.">
-            <Chips options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) }))} value={d.proteinPalms} onChange={(v) => set("proteinPalms", v as number)} />
-          </Q>
-          <div className="grid grid-cols-2 gap-3">
-            <Q label="Veg servings / day" hint="1 serving ≈ 1 cup"><NumberInput value={d.vegServings} onChange={(v) => set("vegServings", v ?? 0)} /></Q>
-            <Q label="Fruit servings / day"><NumberInput value={d.fruitServings} onChange={(v) => set("fruitServings", v ?? 0)} /></Q>
-            <Q label="Water / day"><NumberInput value={d.waterLiters} onChange={(v) => set("waterLiters", v ?? 0)} step={0.25} suffix="L" /></Q>
-            <Q label="Sugary drinks / week" hint="Soda, juice, sweet chai/coffee"><NumberInput value={d.sugaryDrinksPerWeek} onChange={(v) => set("sugaryDrinksPerWeek", v ?? 0)} /></Q>
-            <Q label="Fried / packaged foods / week"><NumberInput value={d.friedOrPackagedPerWeek} onChange={(v) => set("friedOrPackagedPerWeek", v ?? 0)} /></Q>
-            <Q label="Alcoholic drinks / week"><NumberInput value={d.alcoholPerWeek} onChange={(v) => set("alcoholPerWeek", v ?? 0)} /></Q>
-          </div>
-          <Q label="Do you usually eat dinner within 2 hours of bed?"><Chips options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]} value={d.lateEating ? "yes" : "no"} onChange={(v) => set("lateEating", v === "yes")} /></Q>
-          <Q label="Supplements"><Chips multi options={["protein powder", "creatine", "vitamin D", "B12", "iron", "multivitamin", "omega-3", "calcium"].map((x) => ({ value: x, label: x }))} value={d.supplements} onChange={(v) => set("supplements", v as string[])} /></Q>
-        </>)}
+        </div>
       </div>
 
-      {err && <div className="mt-5"><Notice>{err}</Notice></div>}
-      <div className="mt-8 flex gap-3">
-        {step > 0 && <Button variant="ghost" onClick={() => setStep(step - 1)}>Back</Button>}
-        <Button full onClick={next} disabled={saving}>{step === STEPS.length - 1 ? (saving ? "Saving…" : "Save & go to fitness tests") : "Continue"}</Button>
+      <div className="flex-1 pb-36 pt-2">
+        {thinking && <div className="flex items-center gap-3 py-6"><CoachAvatar /><span className="text-muted">Maya is thinking about your answers…</span></div>}
+
+        {!thinking && followUp && (
+          <QuestionScreen
+            q={{ id: "followup", section: followUp.section, kind: followUp.options.length ? "single" : "text", coach: followUp.ask, options: followUp.options.map((o) => ({ value: o, label: o })) }}
+            text={followUp.ask} answer={fuAnswer} onChange={setFuAnswer} onNext={() => {}} />
+        )}
+
+        {!thinking && !followUp && stage === "questions" && (
+          <QuestionScreen key={q.id} q={q} text={fill(q.coach, st.answers)} answer={st.answers[q.id]} onChange={setAnswer} onNext={next} reactionLine={lastReaction} />
+        )}
+
+        {stage === "trial-intro" && (
+          <div className="space-y-5">
+            <CoachBubble><MiniMarkdown text={skill.trials.intro} /></CoachBubble>
+            <div className="grid grid-cols-3 gap-2">
+              {TRIALS.map((t) => (
+                <div key={t.id} className="text-center">
+                  <ExerciseMedia id={t.exerciseId} alt={t.title} size="md" />
+                  <div className="mt-1 text-xs font-medium">{t.title}</div>
+                </div>
+              ))}
+            </div>
+            <Notice tone="accent">You&apos;ll need a chair, a towel and a door, and about 10 minutes. Stop anything that causes sharp pain.</Notice>
+          </div>
+        )}
+
+        {stage === "trials" && trial && <TrialScreen key={trial.id} t={trial} r={trialResult} onChange={setTrial} />}
+
+        {stage === "health" && <HealthChecks health={st.health} onChange={(h) => update({ health: h })} />}
+
+        {(stage === "analysis" || stage === "plan") && !built && <Spinner />}
+        {stage === "analysis" && built && <AnalysisView built={built} summary={st.summary} />}
+        {stage === "plan" && built && <PlanReveal built={built} />}
+        {err && <div className="mt-4"><Notice>{err}</Notice></div>}
       </div>
+
+      {cta && !thinking && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-bg/95 px-4 pt-3 backdrop-blur" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
+          <div className="mx-auto flex max-w-xl gap-2">
+            {cta.secondary && <Button variant="ghost" onClick={cta.secondary.onClick}>{cta.secondary.label}</Button>}
+            <Button full onClick={cta.onClick} disabled={cta.disabled} className="min-h-13 text-base">{cta.label}</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HealthChecks({ health, onChange }: { health: TestResults; onChange: (h: TestResults) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <div className="space-y-4">
+      <CoachBubble>{skill.healthTests.intro}</CoachBubble>
+      {HEALTH_TESTS.map((t) => {
+        const v = health[t.key] as number | undefined;
+        return (
+          <div key={t.key} className={cx("rounded-2xl border bg-surface", v !== undefined ? "border-good" : "border-line")}>
+            <button type="button" className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen(open === t.key ? null : t.key)}>
+              <span className={cx("grid h-7 w-7 place-items-center rounded-full text-xs font-bold", v !== undefined ? "bg-good text-white" : "bg-surface-2 text-muted")}>{v !== undefined ? "✓" : ""}</span>
+              <span className="flex-1"><span className="block font-semibold">{t.title}</span><span className="text-xs text-muted">{t.measures}</span></span>
+              <span className="text-muted">{open === t.key ? "−" : "+"}</span>
+            </button>
+            {open === t.key && (
+              <div className="space-y-3 border-t border-line px-4 py-4">
+                <div className="text-xs text-muted">You need: {t.equipment}</div>
+                <ol className="list-decimal space-y-1 pl-5 text-[15px]">{t.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+                {t.safety && <Notice>{t.safety}</Notice>}
+                {t.stopwatch ? <Timer seconds={t.timerSec} onStop={(s) => onChange({ ...health, [t.key]: s })} /> : t.timerSec ? <Timer seconds={t.timerSec} metronomeBpm={t.metronomeBpm} /> : null}
+                <div className="flex items-center gap-3">
+                  <input id={`health-${t.key}`} type="number" inputMode="decimal" className="w-full rounded-2xl border border-line bg-surface px-4 py-3 text-2xl font-bold outline-none focus:border-accent"
+                    value={v ?? ""} onChange={(e) => onChange({ ...health, [t.key]: e.target.value === "" ? undefined : Number(e.target.value) })} />
+                  <span className="shrink-0 text-sm text-muted">{t.unit}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <p className="text-center text-sm text-muted">All optional. Skip straight to your results if you like.</p>
+    </div>
+  );
+}
+
+function AnalysisView({ built, summary }: { built: Built; summary?: string }) {
+  const an = built.analysis;
+  const names: Record<string, string> = { cardio: "Cardio", upper: "Upper body", lower: "Lower body", core: "Core", mobility: "Flexibility", balance: "Balance", bodyComp: "Body composition" };
+  return (
+    <div className="space-y-5">
+      <CoachBubble sub={summary === undefined ? "Writing your personal summary…" : undefined}>
+        {summary ? <MiniMarkdown text={summary} /> : <span>Here&apos;s what I learned about you, {built.intake.name.split(" ")[0] || "friend"}. {an.summary.join(" ")}</span>}
+      </CoachBubble>
+      <div className="rounded-3xl bg-accent-soft p-5">
+        <div className="text-sm font-semibold text-accent">Starting level</div>
+        <div className="mt-1 flex items-end gap-2"><span className="text-4xl font-black capitalize">{an.level}</span><span className="pb-1 text-muted">· {an.overall}/5</span></div>
+      </div>
+      {an.flags.map((f) => <Notice key={f}>{f}</Notice>)}
+      <div className="space-y-3 rounded-2xl border border-line bg-surface p-4">
+        {Object.entries(an.domains).map(([d, v]) => (
+          <div key={d}><div className="mb-1 flex justify-between text-sm"><span>{names[d] ?? d}</span><span className="font-semibold tabular-nums">{v}/5</span></div><ScoreBar score={v} /></div>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-line bg-surface p-4">
+        <div className="mb-2 font-semibold">Nutrition targets</div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-xl bg-surface-2 p-2"><div className="font-bold">{an.diet.calorieRange[0]}–{an.diet.calorieRange[1]}</div><div className="text-[11px] text-muted">kcal/day</div></div>
+          <div className="rounded-xl bg-surface-2 p-2"><div className="font-bold">{an.diet.proteinTarget} g</div><div className="text-[11px] text-muted">protein</div></div>
+          <div className="rounded-xl bg-surface-2 p-2"><div className="font-bold">{an.diet.waterTarget} L</div><div className="text-[11px] text-muted">water</div></div>
+        </div>
+        {an.diet.priorities[0] && <p className="mt-3 text-sm">{an.diet.priorities[0]}</p>}
+      </div>
+    </div>
+  );
+}
+
+function PlanReveal({ built }: { built: Built }) {
+  const p = built.program;
+  const blocked = programBlocked(built.intake);
+  const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return (
+    <div className="space-y-5">
+      <CoachBubble>Here&apos;s your first 4-week block: <b>{p.split}</b>, {p.createdFor.daysPerWeek} days a week. Week 4 is a lighter deload.</CoachBubble>
+      {blocked && <Notice>{blocked}</Notice>}
+      <div className="space-y-3">
+        {p.weeks[0].map((s) => (
+          <div key={s.key} className="rounded-2xl border border-line bg-surface p-4">
+            <div className="flex items-baseline justify-between"><div className="text-lg font-bold">{s.title}</div><div className="text-sm text-muted">{DAY[s.weekday]} · ~{s.estMinutes} min</div></div>
+            <div className="mt-3 grid gap-2">
+              {s.main.map((m) => (
+                <div key={m.exerciseId} className="flex items-center gap-3">
+                  <ExerciseMedia id={m.exerciseId} alt={m.name} size="sm" />
+                  <div className="min-w-0 flex-1"><div className="truncate text-[15px] font-medium">{m.name}</div><div className="text-xs text-muted">{m.sets} × {m.reps}</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl bg-surface-2 p-4">
+        <div className="mb-2 font-semibold">Why this plan fits you</div>
+        <ul className="space-y-1.5 text-sm">{(p.why ?? []).map((w) => <li key={w} className="flex gap-2"><span className="text-accent">✓</span><span>{w}</span></li>)}</ul>
+      </div>
+      <p className="text-center text-sm text-muted">You can always ask Maya to change anything later.</p>
     </div>
   );
 }
