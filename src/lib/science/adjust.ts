@@ -74,8 +74,9 @@ export function adjustProgram(
       break;
     }
     case "change_days": {
-      const d = Math.min(6, Math.max(2, Math.round(params.days_per_week ?? intake.daysPerWeek)));
-      const pref = (params.preferred_days ?? []).map(Number).filter((x) => x >= 0 && x <= 6);
+      const pref = [...new Set((params.preferred_days ?? []).map(Number).filter((x) => x >= 0 && x <= 6))];
+      // "Tuesday and Saturday" means 2 days even if the day count wasn't stated
+      const d = Math.min(6, Math.max(2, Math.round(params.days_per_week ?? (pref.length >= 2 ? pref.length : intake.daysPerWeek))));
       next = { ...next, daysPerWeek: d, preferredDays: pref.length === d ? pref : [] };
       intakeChanged = true;
       plan = generateProgram(next, analysis, { ...keep, intensityOffset: offset });

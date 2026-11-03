@@ -99,11 +99,12 @@ export async function activateProgram(plan: Program, startDate: string, reason: 
   const sb = supabase();
   const user_id = await uid();
   const current = await getActiveProgram();
-  await sb.from("programs").update({ status: "archived" }).eq("status", "active");
+  // Insert the new version first, then archive the rest: she is never left without an active plan.
   const { data, error } = await sb.from("programs")
     .insert({ user_id, plan, start_date: startDate, reason, parent_id: current?.id ?? null, changes: changes ?? null })
     .select("id").single();
   if (error) throw error;
+  await sb.from("programs").update({ status: "archived" }).eq("status", "active").neq("id", data.id);
   return data.id as string;
 }
 
@@ -111,9 +112,9 @@ export async function activateProgram(plan: Program, startDate: string, reason: 
 export async function undoProgram(current: ProgramRow) {
   if (!current.parent_id) return false;
   const sb = supabase();
-  await sb.from("programs").update({ status: "archived" }).eq("id", current.id);
   const { error } = await sb.from("programs").update({ status: "active" }).eq("id", current.parent_id);
   if (error) throw error;
+  await sb.from("programs").update({ status: "archived" }).eq("id", current.id);
   return true;
 }
 

@@ -19,7 +19,12 @@ export async function generate(opts: {
   contents: Content[];
   tools?: FunctionDecl[];
   temperature?: number;
+  /** total time budget in ms (default 50 s); attempts stop when it runs out */
+  budgetMs?: number;
+  /** per-attempt timeout in ms (default 40 s) */
+  attemptMs?: number;
 }): Promise<Content> {
+  const deadline = Date.now() + (opts.budgetMs ?? 50_000);
   const model = process.env.GEMMA_MODEL || "gemma-4-26b-a4b-it";
   const body: Record<string, unknown> = {
     systemInstruction: { parts: [{ text: opts.system }] },
@@ -41,12 +46,14 @@ export async function generate(opts: {
   let lastErr = "";
   for (let i = 0; i < attempts.length; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, 400 * 2 ** (i - 1)));
+    const left = deadline - Date.now();
+    if (left < 2000) break;
     try {
       res = await fetch(`${BASE}/${attempts[i]}:generateContent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(40_000),
+        signal: AbortSignal.timeout(Math.min(opts.attemptMs ?? 40_000, left)),
       });
     } catch (e) {
       lastErr = (e as Error).message;

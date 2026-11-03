@@ -107,6 +107,7 @@ export default function OnboardingPage() {
             ...s.followups.filter((f) => f.section === section).map((f) => ({ q: f.ask, a: f.answer }))],
           profile: `${intake.name || "user"}, ${intake.age}y ${intake.sex}, goal ${intake.primaryGoal}, pain: ${intake.painAreas.join("/") || "none"}`,
           asked: s.followups.map((f) => f.ask),
+          later: SECTIONS.slice(SECTIONS.findIndex((x) => x.id === section) + 1).map((x) => ({ schedule: "training days, session length, location, equipment", preferences: "likes, dislikes, workout style", recovery: "sleep, stress, energy, cycle", nutrition: "diet, protein, water", goals: "goals", experience: "training experience" } as Record<string, string>)[x.id] ?? x.title),
         }),
       });
       clearTimeout(t);
@@ -206,7 +207,7 @@ export default function OnboardingPage() {
   let cta: { label: string; onClick: () => void; disabled?: boolean; secondary?: { label: string; onClick: () => void } } | null = null;
   if (followUp) cta = { label: "Continue", onClick: answerFollowUp, disabled: !fuAnswer.value && !fuAnswer.text?.trim(), secondary: { label: "Skip", onClick: () => { setFuAnswer({ text: "(skipped)" }); setFollowUp(null); const vis = visibleQuestions(st.answers); const nq = vis[vis.indexOf(q) + 1]; if (nq) { setQid(nq.id); update({ qid: nq.id }); } else update({ stage: "trial-intro" }); } } };
   else if (stage === "questions") cta = q.kind === "single" || q.kind === "scale" || q.kind === "scale10"
-    ? (st.answers[q.id]?.text?.trim() || st.answers[q.id]?.value !== undefined ? { label: "Continue", onClick: next, disabled: !canContinue(q, st.answers[q.id]) } : !q.required ? { label: "Skip", onClick: next } : null)
+    ? (st.answers[q.id]?.text?.trim() ? { label: "Continue", onClick: next, disabled: !canContinue(q, st.answers[q.id]) } : !q.required && st.answers[q.id]?.value === undefined ? { label: "Skip", onClick: next } : null)
     : { label: q.kind === "info" ? "Let's start" : st.answers[q.id] || !q.optional ? "Continue" : "Skip", onClick: next, disabled: !canContinue(q, st.answers[q.id]) };
   else if (stage === "trial-intro") cta = { label: "I'm warmed up, let's go", onClick: () => update({ stage: "trials", trialIndex: 0 }) };
   else if (stage === "trials") cta = {

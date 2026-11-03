@@ -18,7 +18,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 export default function PlanPage() {
-  const { loading, program, sched } = useProgram();
+  const { loading, program, sched, reload } = useProgram();
   const coach = useCoach();
   const [week, setWeek] = useState<number | null>(null);
   const [history, setHistory] = useState<ProgramRow[]>([]);
@@ -36,7 +36,7 @@ export default function PlanPage() {
 
   async function undo() {
     setBusy(true);
-    if (await undoProgram(program!)) coach.bumpPlan();
+    if (await undoProgram(program!)) { await reload(); coach.bumpPlan(); }
     setBusy(false);
   }
 

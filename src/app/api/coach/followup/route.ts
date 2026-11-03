@@ -12,6 +12,7 @@ const Body = z.object({
   qa: z.array(z.object({ q: z.string().max(400), a: z.string().max(800) })).max(30),
   profile: z.string().max(1500).optional(),
   asked: z.array(z.string().max(300)).max(10).optional(),
+  later: z.array(z.string().max(40)).max(12).optional(),
 });
 
 function parseJson(text: string): { ask?: string | null; options?: unknown } | null {
@@ -27,17 +28,18 @@ export async function POST(req: Request) {
   if (!gemmaConfigured()) return NextResponse.json({ ask: null });
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ ask: null });
-  const { section, qa, profile, asked } = parsed.data;
+  const { section, qa, profile, asked, later } = parsed.data;
 
   const user = [
     `SECTION: ${section}`,
     profile ? `PROFILE SO FAR: ${profile}` : "",
     `ANSWERS IN THIS SECTION:\n${qa.map((x) => `- Q: ${x.q}\n  A: ${x.a}`).join("\n")}`,
     asked?.length ? `ALREADY ASKED AS FOLLOW-UPS (do not repeat): ${asked.join(" | ")}` : "",
+    later?.length ? `LATER SECTIONS (do not ask about these): ${later.join(", ")}` : "",
   ].filter(Boolean).join("\n\n");
 
   try {
-    const out = await generate({ system: FOLLOWUP_PROMPT, contents: [{ role: "user", parts: [{ text: user }] }], temperature: 0.4 });
+    const out = await generate({ system: FOLLOWUP_PROMPT, contents: [{ role: "user", parts: [{ text: user }] }], temperature: 0.4, budgetMs: 11_000, attemptMs: 9_000 });
     const j = parseJson(textOf(out));
     const ask = typeof j?.ask === "string" && j.ask.trim() ? j.ask.trim().slice(0, 220) : null;
     const options = Array.isArray(j?.options) ? (j!.options as unknown[]).map(String).map((s) => s.slice(0, 60)).filter(Boolean).slice(0, 5) : [];

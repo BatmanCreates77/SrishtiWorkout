@@ -8,14 +8,19 @@ export function ProposalCard({ id, onApplied }: { id: string; onApplied?: () => 
   const [p, setP] = useState<Proposal | null | undefined>();
   const [busy, setBusy] = useState(false);
   const [undone, setUndone] = useState(false);
+  const [err, setErr] = useState("");
   useEffect(() => { getProposal(id).then(setP); }, [id]);
   if (p === undefined) return <div className="h-24 animate-pulse rounded-2xl bg-surface-2" />;
   if (!p) return null;
 
   async function apply() {
-    setBusy(true);
-    await applyProposal(p!);
-    setP({ ...p!, status: "applied" }); setBusy(false); onApplied?.();
+    setBusy(true); setErr("");
+    try {
+      await applyProposal(p!);
+      setP({ ...p!, status: "applied" }); onApplied?.();
+    } catch {
+      setErr("Couldn't apply that change. Check your connection and try again.");
+    } finally { setBusy(false); }
   }
   async function dismiss() { await dismissProposal(p!.id); setP({ ...p!, status: "dismissed" }); }
   async function undo() {
@@ -42,6 +47,7 @@ export function ProposalCard({ id, onApplied }: { id: string; onApplied?: () => 
           {!undone && <button type="button" onClick={undo} disabled={busy} className="min-h-10 px-2 font-semibold underline">Undo</button>}
         </div>
       )}
+      {err && <div className="mt-2 text-sm text-warn">{err}</div>}
       {p.status === "dismissed" && <div className="mt-2 text-sm text-muted">Kept your current plan.</div>}
     </div>
   );

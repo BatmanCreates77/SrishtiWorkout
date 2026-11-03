@@ -35,7 +35,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (!data.user) { router.replace(`/login?next=${encodeURIComponent(path)}`); return; }
       // Gate: the app opens only after the coach-led onboarding is complete.
       const { completedAt } = await getOnboarding();
-      if (!completedAt && !path.startsWith("/onboarding")) { router.replace("/onboarding"); return; }
+      // (the layout persists across this redirect, so mark ready either way)
+      if (!completedAt && !path.startsWith("/onboarding")) router.replace("/onboarding");
       setReady(true);
     });
     const { data: sub } = sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") router.replace("/login"); });

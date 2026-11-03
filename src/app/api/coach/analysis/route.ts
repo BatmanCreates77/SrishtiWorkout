@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   ].join("\n");
 
   try {
-    const out = await generate({ system: `${ANALYSIS_PROMPT}\n\n# CONTEXT\n${ctx}`, contents: [{ role: "user", parts: [{ text: "Write my summary." }] }], temperature: 0.6 });
+    const out = await generate({ system: `${ANALYSIS_PROMPT}\n\n# CONTEXT\n${ctx}`, contents: [{ role: "user", parts: [{ text: "Write my summary." }] }], temperature: 0.6, budgetMs: 42_000, attemptMs: 25_000 });
     return NextResponse.json({ summary: textOf(out) || null });
   } catch (e) {
     console.error(e);
