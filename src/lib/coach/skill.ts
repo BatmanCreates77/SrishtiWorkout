@@ -7,7 +7,7 @@ export type Question = {
   id: string; section: string; kind: "info" | "text" | "number" | "single" | "multi" | "scale" | "scale10";
   coach: string; field?: string; options?: Option[]; unit?: string; min?: number; max?: number; step?: number;
   required?: boolean; optional?: boolean; probe?: boolean; when?: When; react?: Record<string, string>;
-  low?: string; high?: string;
+  low?: string; high?: string; stage: "essentials" | "after_test" | "later";
 };
 export type Trial = {
   id: string; pattern: string; title: string; exerciseId: string; easier: string; harder: string;

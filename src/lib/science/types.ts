@@ -166,6 +166,7 @@ export type Program = {
   createdFor: { level: string; goal: Goal; daysPerWeek: number; sessionMinutes: number; equipment: EquipKey[] };
   constraints?: Constraints;
   trial?: TrialPlan;
+  splitKey?: "full" | "upper_lower" | "ppl" | "body_part";
   why?: string[];
   intensityOffset: number; // -1 easier, 0 normal, +1 harder
   split: string;

@@ -33,7 +33,7 @@ export function adjustProgram(
 ): AdjustResult {
   const today = toISODate(new Date());
   const offset = current?.plan.intensityOffset ?? 0;
-  const keep = { trial: current?.plan.trial, constraints: current?.plan.constraints };
+  const keep = { trial: current?.plan.trial, constraints: current?.plan.constraints, splitKey: current?.plan.splitKey };
   let next = { ...intake };
   let intakeChanged = false;
   let startDate = today;

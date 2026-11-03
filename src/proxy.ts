@@ -3,7 +3,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { GATE_COOKIE, verifyToken } from "@/lib/gate";
 
-const PUBLIC = new Set(["/unlock", "/robots.txt", "/icon.svg"]);
+// sw.js and the icons hold no data; the cron route checks its own secret.
+const PUBLIC = new Set(["/unlock", "/robots.txt", "/icon.svg", "/apple-icon", "/sw.js", "/manifest.webmanifest", "/api/cron/notify"]);
 
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

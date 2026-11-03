@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { adherence, currentWeek, daysSinceLastWorkout, nextSession, schedule, toISODate, type LogRow } from "@/lib/science/schedule";
 import type { Analysis, Intake, LogEntry, Program } from "@/lib/science/types";
+import { fill, pendingLater, type Answers } from "@/lib/onboarding";
 
 export type CoachState = {
   userId: string;
@@ -10,15 +11,17 @@ export type CoachState = {
   program: { id: string; plan: Program; start_date: string } | null;
   programLogs: LogRow[];
   recentLogs: (LogRow & { program_id: string })[];
+  answers?: Answers;
 };
 
 export async function loadState(sb: SupabaseClient, userId: string): Promise<CoachState> {
   const since = new Date(Date.now() - 28 * 86400000).toISOString();
-  const [i, a, p, r] = await Promise.all([
+  const [i, a, p, r, o] = await Promise.all([
     sb.from("intakes").select("data").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("assessments").select("analysis").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("programs").select("id, plan, start_date").eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     sb.from("workout_logs").select("program_id, session_key, status, performed_at, session_rpe, notes, entries").gte("performed_at", since).order("performed_at", { ascending: false }),
+    sb.from("profiles").select("onboarding").maybeSingle(),
   ]);
   const program = (p.data as CoachState["program"]) ?? null;
   const recentLogs = (r.data as CoachState["recentLogs"]) ?? [];
@@ -29,6 +32,7 @@ export async function loadState(sb: SupabaseClient, userId: string): Promise<Coa
     program,
     programLogs: program ? recentLogs.filter((l) => l.program_id === program.id) : [],
     recentLogs,
+    answers: ((o.data?.onboarding as { answers?: Answers } | null)?.answers) ?? {},
   };
 }
 
@@ -93,6 +97,10 @@ export function buildContext(s: CoachState): string {
       return `${l.performed_at.slice(0, 10)} ${l.session_key} ${l.status}${l.session_rpe ? ` RPE ${l.session_rpe}` : ""}${skippedEx ? `, skipped ${skippedEx} exercises` : ""}${l.notes ? `, note: "${l.notes}"` : ""}`;
     });
     lines.push(`RECENT LOGS: ${recent.join(" | ") || "none"}`);
+  }
+  if (s.answers) {
+    const unknown = pendingLater(s.answers).slice(0, 6).map((q) => `${q.id}: "${fill(q.coach, s.answers!)}"`);
+    if (unknown.length) lines.push(`STILL UNKNOWN (onboarding was kept short; when relevant, ask ONE of these naturally, never as a list): ${unknown.join(" | ")}`);
   }
   return lines.filter(Boolean).join("\n");
 }

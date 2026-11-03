@@ -1,198 +1,1634 @@
 {
-  "$comment": "Coach Maya's onboarding question graph. Order = the order asked. A node with `when` is only asked if its condition holds on earlier answers. Every question accepts a free-text answer in addition to its options. `field` maps the answer onto the Intake; other answers are kept in intake.extras. `probe: true` lets the AI coach ask up to 2 tailored follow-ups for that section. `react` = what the coach says on the next screen when an option is picked.",
-  "sections": [
-    { "id": "welcome", "title": "Welcome" },
-    { "id": "you", "title": "About you" },
-    { "id": "health", "title": "Health check" },
-    { "id": "experience", "title": "Experience" },
-    { "id": "goals", "title": "Goals" },
-    { "id": "schedule", "title": "Your week" },
-    { "id": "preferences", "title": "What you enjoy" },
-    { "id": "recovery", "title": "Recovery" },
-    { "id": "nutrition", "title": "Nutrition" }
-  ],
-  "questions": [
-    { "id": "intro", "section": "welcome", "kind": "info",
-      "coach": "Hi, I'm Maya, your coach. I'll ask you a few questions, then we'll do a short movement check together so I can build a plan around the real you. It takes about 20 minutes. You can tap an option or type your own answer anytime." },
-
-    { "id": "name", "section": "you", "kind": "text", "field": "name", "required": true,
-      "coach": "First, what should I call you?" },
-    { "id": "age", "section": "you", "kind": "number", "field": "age", "unit": "years", "min": 14, "max": 90, "required": true,
-      "coach": "Nice to meet you, {name}! How old are you? I use it to compare your results with the right norms." },
-    { "id": "sex", "section": "you", "kind": "single", "field": "sex", "required": true,
-      "coach": "Which norms should I use for your fitness tests?",
-      "options": [{ "value": "female", "label": "Female" }, { "value": "male", "label": "Male" }] },
-    { "id": "height", "section": "you", "kind": "number", "field": "heightCm", "unit": "cm", "min": 120, "max": 220, "required": true,
-      "coach": "How tall are you?" },
-    { "id": "weight", "section": "you", "kind": "number", "field": "weightKg", "unit": "kg", "min": 30, "max": 250, "step": 0.1, "required": true,
-      "coach": "And your current weight? It stays private and only helps me set protein and energy targets." },
-
-    { "id": "parq", "section": "health", "kind": "multi", "field": "parq", "required": true,
-      "coach": "Safety first. Do any of these apply to you?",
-      "options": [
-        { "value": "none", "label": "None of these", "exclusive": true },
-        { "value": "heart", "label": "Heart condition or high blood pressure" },
-        { "value": "chestPain", "label": "Chest pain at rest or when active" },
-        { "value": "dizzy", "label": "Dizziness or fainting in the last year" },
-        { "value": "chronic", "label": "Another chronic condition (e.g. diabetes, thyroid, PCOS)" },
-        { "value": "meds", "label": "Prescribed medicine for a chronic condition" },
-        { "value": "joint", "label": "A joint or bone problem that activity could worsen" },
-        { "value": "supervised", "label": "A doctor said to exercise only under supervision" }
-      ],
-      "react": { "any_except:none": "Thanks for telling me. I'll keep things conservative, and please check with your doctor before the harder efforts." } },
-    { "id": "cleared", "section": "health", "kind": "single", "when": { "q": "parq", "anyExcept": "none" },
-      "coach": "Has a doctor cleared you for exercise since then?",
-      "options": [{ "value": "yes", "label": "Yes, I'm cleared" }, { "value": "no", "label": "Not yet" }, { "value": "na", "label": "Never asked" }] },
-    { "id": "pregnancy", "section": "health", "kind": "single", "field": "pregnancy", "when": { "q": "sex", "eq": "female" },
-      "coach": "Are you currently pregnant or have you had a baby recently?",
-      "options": [{ "value": "no", "label": "Neither" }, { "value": "pregnant", "label": "I'm pregnant" }, { "value": "postpartum_lt12w", "label": "Baby in the last 12 weeks" }, { "value": "postpartum_gt12w", "label": "Baby more than 12 weeks ago" }] },
-    { "id": "pelvic", "section": "health", "kind": "single", "when": { "q": "sex", "eq": "female" },
-      "coach": "This one is common and nothing to be shy about: any leaking, heaviness or pelvic pain when you cough, jump, run or lift?",
-      "options": [{ "value": "no", "label": "No" }, { "value": "sometimes", "label": "Sometimes" }, { "value": "often", "label": "Yes, often" }],
-      "react": { "sometimes": "Good to know. I'll skip jumping for now and add core work that supports your pelvic floor. A pelvic-floor physio is worth a visit.", "often": "Thank you for sharing. I'll keep everything low-impact, and I'd really recommend seeing a pelvic-floor physio." } },
-    { "id": "pain", "section": "health", "kind": "multi", "field": "painAreas", "probe": true,
-      "coach": "Any pain right now, or when you move or exercise?",
-      "options": [
-        { "value": "none", "label": "No pain", "exclusive": true },
-        { "value": "knee", "label": "Knee" }, { "value": "lower back", "label": "Lower back" }, { "value": "shoulder", "label": "Shoulder" },
-        { "value": "wrist", "label": "Wrist / elbow" }, { "value": "hip", "label": "Hip" }, { "value": "ankle", "label": "Ankle / foot" }, { "value": "neck", "label": "Neck" }
-      ] },
-    { "id": "knee_triggers", "section": "health", "kind": "multi", "when": { "q": "pain", "includes": "knee" },
-      "coach": "Let's get specific about your knee. When does it bother you?",
-      "options": [{ "value": "stairs", "label": "Stairs" }, { "value": "deep_squat", "label": "Squatting deep" }, { "value": "jumping", "label": "Jumping or running" }, { "value": "kneeling", "label": "Kneeling" }, { "value": "sitting", "label": "After sitting long" }] },
-    { "id": "back_triggers", "section": "health", "kind": "multi", "when": { "q": "pain", "includes": "lower back" },
-      "coach": "What tends to set your lower back off?",
-      "options": [{ "value": "bending", "label": "Bending forward" }, { "value": "lifting", "label": "Lifting things" }, { "value": "sitting", "label": "Sitting long" }, { "value": "standing", "label": "Standing long" }, { "value": "morning", "label": "Stiff in the morning" }] },
-    { "id": "shoulder_triggers", "section": "health", "kind": "multi", "when": { "q": "pain", "includes": "shoulder" },
-      "coach": "Which movements bother your shoulder?",
-      "options": [{ "value": "overhead", "label": "Reaching overhead" }, { "value": "pushing", "label": "Pushing" }, { "value": "lying", "label": "Lying on it" }, { "value": "behind", "label": "Reaching behind" }] },
-    { "id": "pain_level", "section": "health", "kind": "scale10", "when": { "q": "pain", "anyExcept": "none" },
-      "coach": "On a bad day, how strong is that pain, from 0 to 10?",
-      "react": { "gte:6": "That's significant. I'll work around it, but please get it assessed by a physio or doctor." } },
-    { "id": "injuries", "section": "health", "kind": "text", "field": "injuries", "optional": true,
-      "coach": "Any past injuries, surgeries or conditions I should know about? Skip if none." },
-
-    { "id": "training_age", "section": "experience", "kind": "single", "field": "trainingAge", "required": true,
-      "coach": "How much strength training have you done?",
-      "options": [{ "value": 0, "label": "None yet" }, { "value": 1, "label": "A little (under 6 months)" }, { "value": 2, "label": "6 months to 2 years" }, { "value": 3, "label": "More than 2 years" }] },
-    { "id": "trained_with", "section": "experience", "kind": "multi", "when": { "q": "training_age", "gte": 1 },
-      "coach": "What have you trained with before?",
-      "options": [{ "value": "bodyweight", "label": "Bodyweight" }, { "value": "dumbbell", "label": "Dumbbells" }, { "value": "band", "label": "Bands" }, { "value": "machine", "label": "Machines" }, { "value": "barbell", "label": "Barbell" }, { "value": "kettlebell", "label": "Kettlebell" }] },
-    { "id": "current_days", "section": "experience", "kind": "single", "field": "currentDaysPerWeek",
-      "coach": "In a normal week right now, how many days do you move on purpose (any exercise)?",
-      "options": [{ "value": 0, "label": "0" }, { "value": 1, "label": "1" }, { "value": 2, "label": "2" }, { "value": 3, "label": "3" }, { "value": 4, "label": "4" }, { "value": 5, "label": "5+" }] },
-    { "id": "activities", "section": "experience", "kind": "multi", "field": "currentActivities", "when": { "q": "current_days", "gte": 1 },
-      "coach": "What do you usually do?",
-      "options": [{ "value": "walking", "label": "Walking" }, { "value": "running", "label": "Running" }, { "value": "gym", "label": "Gym" }, { "value": "home workouts", "label": "Home workouts" }, { "value": "yoga", "label": "Yoga" }, { "value": "pilates", "label": "Pilates" }, { "value": "dance", "label": "Dance / Zumba" }, { "value": "cycling", "label": "Cycling" }, { "value": "sports", "label": "Sports" }] },
-    { "id": "steps", "section": "experience", "kind": "single", "field": "dailySteps",
-      "coach": "Roughly how many steps do you walk a day?",
-      "options": [{ "value": "lt3k", "label": "Under 3,000" }, { "value": "3to6k", "label": "3,000 to 6,000" }, { "value": "6to9k", "label": "6,000 to 9,000" }, { "value": "gt9k", "label": "9,000+" }] },
-    { "id": "job", "section": "experience", "kind": "single", "field": "jobActivity",
-      "coach": "And your day job is mostly...",
-      "options": [{ "value": "sedentary", "label": "Sitting" }, { "value": "light", "label": "Some standing and walking" }, { "value": "active", "label": "Physically active" }] },
-
-    { "id": "goal", "section": "goals", "kind": "single", "field": "primaryGoal", "required": true, "probe": true,
-      "coach": "Now the fun part. What's the number one thing you want from training?",
-      "options": [{ "value": "fat_loss", "label": "Lose fat" }, { "value": "muscle", "label": "Tone up and build muscle" }, { "value": "strength", "label": "Get stronger" }, { "value": "endurance", "label": "More stamina" }, { "value": "general", "label": "Health and energy" }, { "value": "mobility", "label": "Move better, less stiffness" }] },
-    { "id": "fat_loss_target", "section": "goals", "kind": "single", "when": { "q": "goal", "eq": "fat_loss" },
-      "coach": "How much would you like to lose, roughly?",
-      "options": [{ "value": "lt5", "label": "Under 5 kg" }, { "value": "5to10", "label": "5 to 10 kg" }, { "value": "gt10", "label": "More than 10 kg" }, { "value": "inches", "label": "Not about the scale, about how I look" }] },
-    { "id": "focus_areas", "section": "goals", "kind": "multi", "when": { "q": "goal", "in": ["muscle", "fat_loss", "strength"] },
-      "coach": "Which areas matter most to you?",
-      "options": [{ "value": "glutes", "label": "Glutes" }, { "value": "legs", "label": "Legs" }, { "value": "arms", "label": "Arms" }, { "value": "back", "label": "Back and posture" }, { "value": "core", "label": "Core" }, { "value": "overall", "label": "Overall" }] },
-    { "id": "milestone", "section": "goals", "kind": "single", "when": { "q": "goal", "in": ["strength", "muscle"] },
-      "coach": "Is there a strength milestone you'd love to hit?",
-      "options": [{ "value": "pushup", "label": "My first real push-up" }, { "value": "pullup", "label": "My first pull-up" }, { "value": "deadlift", "label": "Deadlift my bodyweight" }, { "value": "none", "label": "Just get stronger" }] },
-    { "id": "event", "section": "goals", "kind": "single", "when": { "q": "goal", "eq": "endurance" },
-      "coach": "Training for anything specific?",
-      "options": [{ "value": "5k", "label": "A 5K" }, { "value": "10k", "label": "A 10K or more" }, { "value": "trek", "label": "A trek or hike" }, { "value": "sport", "label": "A sport" }, { "value": "none", "label": "Just more stamina" }] },
-    { "id": "secondary_goal", "section": "goals", "kind": "single", "field": "secondaryGoal",
-      "coach": "Anything you'd like as a second goal?",
-      "options": [{ "value": "", "label": "No, keep it simple" }, { "value": "fat_loss", "label": "Lose fat" }, { "value": "muscle", "label": "Tone up" }, { "value": "strength", "label": "Strength" }, { "value": "endurance", "label": "Stamina" }, { "value": "mobility", "label": "Mobility" }] },
-    { "id": "why", "section": "goals", "kind": "single", "probe": true,
-      "coach": "What's driving this for you right now? Your 'why' keeps us going on the hard days.",
-      "options": [{ "value": "energy", "label": "More energy" }, { "value": "confidence", "label": "Feel confident in my body" }, { "value": "health", "label": "Health numbers / doctor's advice" }, { "value": "event", "label": "An event or date" }, { "value": "family", "label": "Keep up with family" }, { "value": "stress", "label": "Manage stress" }] },
-    { "id": "win", "section": "goals", "kind": "text", "field": "goalNote", "optional": true,
-      "coach": "Picture 3 months from now. What would make you say 'this worked'?" },
-
-    { "id": "days", "section": "schedule", "kind": "single", "field": "daysPerWeek", "required": true,
-      "coach": "How many days a week can you realistically train? Honest beats ambitious.",
-      "options": [{ "value": 2, "label": "2 days" }, { "value": 3, "label": "3 days" }, { "value": 4, "label": "4 days" }, { "value": 5, "label": "5 days" }, { "value": 6, "label": "6 days" }] },
-    { "id": "preferred_days", "section": "schedule", "kind": "multi", "field": "preferredDays",
-      "coach": "Which days work best? Pick {answer:days} or skip and I'll spread them out.",
-      "options": [{ "value": 1, "label": "Mon" }, { "value": 2, "label": "Tue" }, { "value": 3, "label": "Wed" }, { "value": 4, "label": "Thu" }, { "value": 5, "label": "Fri" }, { "value": 6, "label": "Sat" }, { "value": 0, "label": "Sun" }] },
-    { "id": "minutes", "section": "schedule", "kind": "single", "field": "sessionMinutes", "required": true,
-      "coach": "How long can each session be?",
-      "options": [{ "value": 20, "label": "20 min" }, { "value": 30, "label": "30 min" }, { "value": 45, "label": "45 min" }, { "value": 60, "label": "60 min" }, { "value": 75, "label": "75+ min" }] },
-    { "id": "time_of_day", "section": "schedule", "kind": "single",
-      "coach": "When do you usually train?",
-      "options": [{ "value": "morning", "label": "Morning" }, { "value": "midday", "label": "Midday" }, { "value": "evening", "label": "Evening" }, { "value": "varies", "label": "It varies" }] },
-    { "id": "location", "section": "schedule", "kind": "single", "field": "location", "required": true,
-      "coach": "Where will you train?",
-      "options": [{ "value": "home", "label": "At home" }, { "value": "gym", "label": "At a gym" }, { "value": "both", "label": "Both" }] },
-    { "id": "equipment", "section": "schedule", "kind": "multi", "field": "equipment", "when": { "q": "location", "in": ["home", "both"] },
-      "coach": "What do you have at home? Bodyweight always counts.",
-      "options": [{ "value": "dumbbell", "label": "Dumbbells" }, { "value": "kettlebell", "label": "Kettlebell" }, { "value": "band", "label": "Resistance bands" }, { "value": "step", "label": "Step or stairs" }, { "value": "bench", "label": "Bench / sturdy surface" }, { "value": "pullup_bar", "label": "Pull-up bar" }, { "value": "stability_ball", "label": "Swiss ball" }, { "value": "jump_rope", "label": "Jump rope" }, { "value": "cardio_machine", "label": "Treadmill / bike" }] },
-    { "id": "dumbbell_weights", "section": "schedule", "kind": "single", "when": { "q": "equipment", "includes": "dumbbell" },
-      "coach": "What dumbbell weights do you have?",
-      "options": [{ "value": "light", "label": "Light only (1-4 kg)" }, { "value": "medium", "label": "Up to 10 kg" }, { "value": "adjustable", "label": "Adjustable / heavier" }] },
-
-    { "id": "enjoy", "section": "preferences", "kind": "multi", "probe": true,
-      "coach": "What kind of movement do you actually enjoy? I'll lean into it.",
-      "options": [{ "value": "strength", "label": "Lifting / strength" }, { "value": "dance", "label": "Dance / cardio classes" }, { "value": "yoga", "label": "Yoga / stretching" }, { "value": "outdoors", "label": "Walking / outdoors" }, { "value": "hiit", "label": "Short intense workouts" }, { "value": "sports", "label": "Sports" }] },
-    { "id": "dislike", "section": "preferences", "kind": "multi",
-      "coach": "And anything you'd rather avoid?",
-      "options": [{ "value": "none", "label": "I'm open to anything", "exclusive": true }, { "value": "jumping", "label": "Jumping / burpees" }, { "value": "running", "label": "Running" }, { "value": "floor", "label": "Lots of floor work" }, { "value": "heavy", "label": "Heavy barbell lifting" }, { "value": "long_cardio", "label": "Long cardio" }] },
-    { "id": "style", "section": "preferences", "kind": "single",
-      "coach": "How do you like a workout to feel?",
-      "options": [{ "value": "straight", "label": "Focused sets with rest" }, { "value": "circuit", "label": "Circuits that keep me moving" }, { "value": "mixed", "label": "A mix" }] },
-
-    { "id": "sleep", "section": "recovery", "kind": "single", "field": "sleepHours",
-      "coach": "How much do you usually sleep?",
-      "options": [{ "value": 5, "label": "5 h or less" }, { "value": 6, "label": "About 6 h" }, { "value": 7, "label": "About 7 h" }, { "value": 8, "label": "8 h or more" }] },
-    { "id": "sleep_quality", "section": "recovery", "kind": "scale", "field": "sleepQuality", "low": "Restless", "high": "Deep",
-      "coach": "And how well do you sleep?" },
-    { "id": "stress", "section": "recovery", "kind": "scale", "field": "stress", "low": "Calm", "high": "Very stressed",
-      "coach": "Stress lately?" },
-    { "id": "energy", "section": "recovery", "kind": "scale", "field": "energy", "low": "Drained", "high": "Energetic",
-      "coach": "Day-to-day energy?" },
-    { "id": "cycle", "section": "recovery", "kind": "single", "when": { "q": "sex", "eq": "female" },
-      "coach": "Does your menstrual cycle affect how you feel when training?",
-      "options": [{ "value": "no", "label": "Not really" }, { "value": "some", "label": "A few low days a month" }, { "value": "a_lot", "label": "Cramps / fatigue hit hard" }, { "value": "na", "label": "Not applicable" }],
-      "react": { "a_lot": "Thanks. On those days, tell me and I'll swap in a lighter session. No guilt needed." } },
-
-    { "id": "diet", "section": "nutrition", "kind": "single", "field": "dietPattern", "required": true,
-      "coach": "Last section, food. How do you eat?",
-      "options": [{ "value": "vegetarian", "label": "Vegetarian" }, { "value": "eggetarian", "label": "Eggetarian" }, { "value": "non_vegetarian", "label": "Non-veg" }, { "value": "pescatarian", "label": "Pescatarian" }, { "value": "vegan", "label": "Vegan" }] },
-    { "id": "meals", "section": "nutrition", "kind": "single", "field": "mealsPerDay",
-      "coach": "How many times a day do you eat, snacks included?",
-      "options": [{ "value": 2, "label": "2" }, { "value": 3, "label": "3" }, { "value": 4, "label": "4" }, { "value": 5, "label": "5+" }] },
-    { "id": "protein", "section": "nutrition", "kind": "single", "field": "proteinPalms",
-      "coach": "How many palm-sized protein portions do you eat a day? One palm is about 100 g paneer, chicken or tofu, 2 eggs, a big bowl of curd, or a scoop of whey.",
-      "options": [{ "value": 1, "label": "0-1" }, { "value": 2, "label": "2" }, { "value": 3, "label": "3" }, { "value": 4, "label": "4+" }] },
-    { "id": "veg", "section": "nutrition", "kind": "single", "field": "vegServings",
-      "coach": "Cups of vegetables a day?",
-      "options": [{ "value": 1, "label": "0-1" }, { "value": 2, "label": "2" }, { "value": 3, "label": "3" }, { "value": 4, "label": "4+" }] },
-    { "id": "fruit", "section": "nutrition", "kind": "single", "field": "fruitServings",
-      "coach": "Fruit servings a day?",
-      "options": [{ "value": 0, "label": "0" }, { "value": 1, "label": "1" }, { "value": 2, "label": "2" }, { "value": 3, "label": "3+" }] },
-    { "id": "water", "section": "nutrition", "kind": "single", "field": "waterLiters",
-      "coach": "Water a day?",
-      "options": [{ "value": 1, "label": "About 1 L" }, { "value": 1.5, "label": "1.5 L" }, { "value": 2, "label": "2 L" }, { "value": 3, "label": "3 L+" }] },
-    { "id": "sugary", "section": "nutrition", "kind": "single", "field": "sugaryDrinksPerWeek",
-      "coach": "Sweet drinks per week (soda, juice, sweet chai or coffee)?",
-      "options": [{ "value": 0, "label": "None" }, { "value": 3, "label": "1-3" }, { "value": 7, "label": "About daily" }, { "value": 14, "label": "More than daily" }] },
-    { "id": "fried", "section": "nutrition", "kind": "single", "field": "friedOrPackagedPerWeek",
-      "coach": "Fried or packaged snacks per week?",
-      "options": [{ "value": 1, "label": "Rarely" }, { "value": 3, "label": "2-4 times" }, { "value": 7, "label": "Most days" }] },
-    { "id": "alcohol", "section": "nutrition", "kind": "single", "field": "alcoholPerWeek",
-      "coach": "Alcoholic drinks per week?",
-      "options": [{ "value": 0, "label": "None" }, { "value": 2, "label": "1-3" }, { "value": 6, "label": "4-7" }, { "value": 10, "label": "More" }] },
-    { "id": "late_eating", "section": "nutrition", "kind": "single", "field": "lateEating",
-      "coach": "Is dinner usually within 2 hours of bedtime?",
-      "options": [{ "value": false, "label": "No" }, { "value": true, "label": "Yes" }] },
-    { "id": "supplements", "section": "nutrition", "kind": "multi", "field": "supplements",
-      "coach": "Any supplements?",
-      "options": [{ "value": "none", "label": "None", "exclusive": true }, { "value": "protein powder", "label": "Protein powder" }, { "value": "creatine", "label": "Creatine" }, { "value": "vitamin D", "label": "Vitamin D" }, { "value": "B12", "label": "B12" }, { "value": "iron", "label": "Iron" }, { "value": "omega-3", "label": "Omega-3" }, { "value": "calcium", "label": "Calcium" }] }
-  ]
+ "$comment": "Coach Maya's onboarding question graph. Order = the order asked. A node with `when` is only asked if its condition holds on earlier answers. Every question accepts a free-text answer in addition to its options. `field` maps the answer onto the Intake; other answers are kept in intake.extras. `probe: true` lets the AI coach ask up to 2 tailored follow-ups for that section. `react` = what the coach says on the next screen when an option is picked. `stage`: essentials are asked before the movement check, after_test right after it (they shape the plan), later ones are asked one at a time over the following days (Today card, after workouts, or a 'Maya has a question' notification).",
+ "sections": [
+  {
+   "id": "welcome",
+   "title": "Welcome"
+  },
+  {
+   "id": "you",
+   "title": "About you"
+  },
+  {
+   "id": "health",
+   "title": "Health check"
+  },
+  {
+   "id": "experience",
+   "title": "Experience"
+  },
+  {
+   "id": "goals",
+   "title": "Goals"
+  },
+  {
+   "id": "schedule",
+   "title": "Your week"
+  },
+  {
+   "id": "preferences",
+   "title": "What you enjoy"
+  },
+  {
+   "id": "recovery",
+   "title": "Recovery"
+  },
+  {
+   "id": "nutrition",
+   "title": "Nutrition"
+  }
+ ],
+ "questions": [
+  {
+   "id": "intro",
+   "section": "welcome",
+   "kind": "info",
+   "coach": "Hi, I'm Maya, your coach. I'll ask you a few questions, then we'll do a short movement check together so I can build a plan around the real you. It takes about 20 minutes. You can tap an option or type your own answer anytime.",
+   "stage": "essentials"
+  },
+  {
+   "id": "name",
+   "section": "you",
+   "kind": "text",
+   "field": "name",
+   "required": true,
+   "coach": "First, what should I call you?",
+   "stage": "essentials"
+  },
+  {
+   "id": "age",
+   "section": "you",
+   "kind": "number",
+   "field": "age",
+   "unit": "years",
+   "min": 14,
+   "max": 90,
+   "required": true,
+   "coach": "Nice to meet you, {name}! How old are you? I use it to compare your results with the right norms.",
+   "stage": "essentials"
+  },
+  {
+   "id": "sex",
+   "section": "you",
+   "kind": "single",
+   "field": "sex",
+   "required": true,
+   "coach": "Which norms should I use for your fitness tests?",
+   "options": [
+    {
+     "value": "female",
+     "label": "Female"
+    },
+    {
+     "value": "male",
+     "label": "Male"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "parq",
+   "section": "health",
+   "kind": "multi",
+   "field": "parq",
+   "required": true,
+   "coach": "Safety first. Do any of these apply to you?",
+   "options": [
+    {
+     "value": "none",
+     "label": "None of these",
+     "exclusive": true
+    },
+    {
+     "value": "heart",
+     "label": "Heart condition or high blood pressure"
+    },
+    {
+     "value": "chestPain",
+     "label": "Chest pain at rest or when active"
+    },
+    {
+     "value": "dizzy",
+     "label": "Dizziness or fainting in the last year"
+    },
+    {
+     "value": "chronic",
+     "label": "Another chronic condition (e.g. diabetes, thyroid, PCOS)"
+    },
+    {
+     "value": "meds",
+     "label": "Prescribed medicine for a chronic condition"
+    },
+    {
+     "value": "joint",
+     "label": "A joint or bone problem that activity could worsen"
+    },
+    {
+     "value": "supervised",
+     "label": "A doctor said to exercise only under supervision"
+    }
+   ],
+   "react": {
+    "any_except:none": "Thanks for telling me. I'll keep things conservative, and please check with your doctor before the harder efforts."
+   },
+   "stage": "essentials"
+  },
+  {
+   "id": "cleared",
+   "section": "health",
+   "kind": "single",
+   "when": {
+    "q": "parq",
+    "anyExcept": "none"
+   },
+   "coach": "Has a doctor cleared you for exercise since then?",
+   "options": [
+    {
+     "value": "yes",
+     "label": "Yes, I'm cleared"
+    },
+    {
+     "value": "no",
+     "label": "Not yet"
+    },
+    {
+     "value": "na",
+     "label": "Never asked"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "pregnancy",
+   "section": "health",
+   "kind": "single",
+   "field": "pregnancy",
+   "when": {
+    "q": "sex",
+    "eq": "female"
+   },
+   "coach": "Are you currently pregnant or have you had a baby recently?",
+   "options": [
+    {
+     "value": "no",
+     "label": "Neither"
+    },
+    {
+     "value": "pregnant",
+     "label": "I'm pregnant"
+    },
+    {
+     "value": "postpartum_lt12w",
+     "label": "Baby in the last 12 weeks"
+    },
+    {
+     "value": "postpartum_gt12w",
+     "label": "Baby more than 12 weeks ago"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "pelvic",
+   "section": "health",
+   "kind": "single",
+   "when": {
+    "q": "sex",
+    "eq": "female"
+   },
+   "coach": "This one is common and nothing to be shy about: any leaking, heaviness or pelvic pain when you cough, jump, run or lift?",
+   "options": [
+    {
+     "value": "no",
+     "label": "No"
+    },
+    {
+     "value": "sometimes",
+     "label": "Sometimes"
+    },
+    {
+     "value": "often",
+     "label": "Yes, often"
+    }
+   ],
+   "react": {
+    "sometimes": "Good to know. I'll skip jumping for now and add core work that supports your pelvic floor. A pelvic-floor physio is worth a visit.",
+    "often": "Thank you for sharing. I'll keep everything low-impact, and I'd really recommend seeing a pelvic-floor physio."
+   },
+   "stage": "essentials"
+  },
+  {
+   "id": "pain",
+   "section": "health",
+   "kind": "multi",
+   "field": "painAreas",
+   "probe": true,
+   "coach": "Any pain right now, or when you move or exercise?",
+   "options": [
+    {
+     "value": "none",
+     "label": "No pain",
+     "exclusive": true
+    },
+    {
+     "value": "knee",
+     "label": "Knee"
+    },
+    {
+     "value": "lower back",
+     "label": "Lower back"
+    },
+    {
+     "value": "shoulder",
+     "label": "Shoulder"
+    },
+    {
+     "value": "wrist",
+     "label": "Wrist / elbow"
+    },
+    {
+     "value": "hip",
+     "label": "Hip"
+    },
+    {
+     "value": "ankle",
+     "label": "Ankle / foot"
+    },
+    {
+     "value": "neck",
+     "label": "Neck"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "knee_triggers",
+   "section": "health",
+   "kind": "multi",
+   "when": {
+    "q": "pain",
+    "includes": "knee"
+   },
+   "coach": "Let's get specific about your knee. When does it bother you?",
+   "options": [
+    {
+     "value": "stairs",
+     "label": "Stairs"
+    },
+    {
+     "value": "deep_squat",
+     "label": "Squatting deep"
+    },
+    {
+     "value": "jumping",
+     "label": "Jumping or running"
+    },
+    {
+     "value": "kneeling",
+     "label": "Kneeling"
+    },
+    {
+     "value": "sitting",
+     "label": "After sitting long"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "back_triggers",
+   "section": "health",
+   "kind": "multi",
+   "when": {
+    "q": "pain",
+    "includes": "lower back"
+   },
+   "coach": "What tends to set your lower back off?",
+   "options": [
+    {
+     "value": "bending",
+     "label": "Bending forward"
+    },
+    {
+     "value": "lifting",
+     "label": "Lifting things"
+    },
+    {
+     "value": "sitting",
+     "label": "Sitting long"
+    },
+    {
+     "value": "standing",
+     "label": "Standing long"
+    },
+    {
+     "value": "morning",
+     "label": "Stiff in the morning"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "shoulder_triggers",
+   "section": "health",
+   "kind": "multi",
+   "when": {
+    "q": "pain",
+    "includes": "shoulder"
+   },
+   "coach": "Which movements bother your shoulder?",
+   "options": [
+    {
+     "value": "overhead",
+     "label": "Reaching overhead"
+    },
+    {
+     "value": "pushing",
+     "label": "Pushing"
+    },
+    {
+     "value": "lying",
+     "label": "Lying on it"
+    },
+    {
+     "value": "behind",
+     "label": "Reaching behind"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "pain_level",
+   "section": "health",
+   "kind": "scale10",
+   "when": {
+    "q": "pain",
+    "anyExcept": "none"
+   },
+   "coach": "On a bad day, how strong is that pain, from 0 to 10?",
+   "react": {
+    "gte:6": "That's significant. I'll work around it, but please get it assessed by a physio or doctor."
+   },
+   "stage": "essentials"
+  },
+  {
+   "id": "goal",
+   "section": "goals",
+   "kind": "single",
+   "field": "primaryGoal",
+   "required": true,
+   "probe": true,
+   "coach": "Now the fun part. What's the number one thing you want from training?",
+   "options": [
+    {
+     "value": "fat_loss",
+     "label": "Lose fat"
+    },
+    {
+     "value": "muscle",
+     "label": "Tone up and build muscle"
+    },
+    {
+     "value": "strength",
+     "label": "Get stronger"
+    },
+    {
+     "value": "endurance",
+     "label": "More stamina"
+    },
+    {
+     "value": "general",
+     "label": "Health and energy"
+    },
+    {
+     "value": "mobility",
+     "label": "Move better, less stiffness"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "training_age",
+   "section": "experience",
+   "kind": "single",
+   "field": "trainingAge",
+   "required": true,
+   "coach": "How would you describe your strength-training experience?",
+   "options": [
+    {
+     "value": 0,
+     "label": "None yet"
+    },
+    {
+     "value": 1,
+     "label": "A little (under 6 months)"
+    },
+    {
+     "value": 2,
+     "label": "6 months to 2 years"
+    },
+    {
+     "value": 3,
+     "label": "More than 2 years"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "fitness_level",
+   "section": "experience",
+   "kind": "single",
+   "coach": "And how fit do you feel right now, honestly?",
+   "options": [
+    {
+     "value": "starting",
+     "label": "Just getting started"
+    },
+    {
+     "value": "somewhat",
+     "label": "Somewhat active"
+    },
+    {
+     "value": "fit",
+     "label": "Fairly fit"
+    },
+    {
+     "value": "very_fit",
+     "label": "Very fit"
+    }
+   ],
+   "stage": "essentials"
+  },
+  {
+   "id": "test_liked",
+   "section": "goals",
+   "kind": "multi",
+   "coach": "Nice work on the movement check, {name}! Which of those moves did you actually enjoy?",
+   "options": [
+    {
+     "value": "squat",
+     "label": "Squat"
+    },
+    {
+     "value": "push",
+     "label": "Push-up"
+    },
+    {
+     "value": "row",
+     "label": "Row"
+    },
+    {
+     "value": "hinge",
+     "label": "Glute bridge"
+    },
+    {
+     "value": "lunge",
+     "label": "Lunge"
+    },
+    {
+     "value": "plank",
+     "label": "Plank"
+    },
+    {
+     "value": "none",
+     "label": "Honestly, none of them",
+     "exclusive": true
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "intensity_pref",
+   "section": "goals",
+   "kind": "single",
+   "coach": "How did that effort feel overall, and how hard do you want your workouts to be?",
+   "options": [
+    {
+     "value": "gentle",
+     "label": "That was plenty, start me gently"
+    },
+    {
+     "value": "moderate",
+     "label": "About right, keep it moderate"
+    },
+    {
+     "value": "challenging",
+     "label": "I could do more, challenge me"
+    }
+   ],
+   "probe": true,
+   "stage": "after_test"
+  },
+  {
+   "id": "fat_loss_target",
+   "section": "goals",
+   "kind": "single",
+   "when": {
+    "q": "goal",
+    "eq": "fat_loss"
+   },
+   "coach": "How much would you like to lose, roughly?",
+   "options": [
+    {
+     "value": "lt5",
+     "label": "Under 5 kg"
+    },
+    {
+     "value": "5to10",
+     "label": "5 to 10 kg"
+    },
+    {
+     "value": "gt10",
+     "label": "More than 10 kg"
+    },
+    {
+     "value": "inches",
+     "label": "Not about the scale, about how I look"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "focus_areas",
+   "section": "goals",
+   "kind": "multi",
+   "when": {
+    "q": "goal",
+    "in": [
+     "muscle",
+     "fat_loss",
+     "strength"
+    ]
+   },
+   "coach": "Which areas matter most to you?",
+   "options": [
+    {
+     "value": "glutes",
+     "label": "Glutes"
+    },
+    {
+     "value": "legs",
+     "label": "Legs"
+    },
+    {
+     "value": "arms",
+     "label": "Arms"
+    },
+    {
+     "value": "back",
+     "label": "Back and posture"
+    },
+    {
+     "value": "core",
+     "label": "Core"
+    },
+    {
+     "value": "overall",
+     "label": "Overall"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "milestone",
+   "section": "goals",
+   "kind": "single",
+   "when": {
+    "q": "goal",
+    "in": [
+     "strength",
+     "muscle"
+    ]
+   },
+   "coach": "Is there a strength milestone you'd love to hit?",
+   "options": [
+    {
+     "value": "pushup",
+     "label": "My first real push-up"
+    },
+    {
+     "value": "pullup",
+     "label": "My first pull-up"
+    },
+    {
+     "value": "deadlift",
+     "label": "Deadlift my bodyweight"
+    },
+    {
+     "value": "none",
+     "label": "Just get stronger"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "event",
+   "section": "goals",
+   "kind": "single",
+   "when": {
+    "q": "goal",
+    "eq": "endurance"
+   },
+   "coach": "Training for anything specific?",
+   "options": [
+    {
+     "value": "5k",
+     "label": "A 5K"
+    },
+    {
+     "value": "10k",
+     "label": "A 10K or more"
+    },
+    {
+     "value": "trek",
+     "label": "A trek or hike"
+    },
+    {
+     "value": "sport",
+     "label": "A sport"
+    },
+    {
+     "value": "none",
+     "label": "Just more stamina"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "days",
+   "section": "schedule",
+   "kind": "single",
+   "field": "daysPerWeek",
+   "required": true,
+   "coach": "How many days a week can you realistically train? Honest beats ambitious.",
+   "options": [
+    {
+     "value": 2,
+     "label": "2 days"
+    },
+    {
+     "value": 3,
+     "label": "3 days"
+    },
+    {
+     "value": 4,
+     "label": "4 days"
+    },
+    {
+     "value": 5,
+     "label": "5 days"
+    },
+    {
+     "value": 6,
+     "label": "6 days"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "preferred_days",
+   "section": "schedule",
+   "kind": "multi",
+   "field": "preferredDays",
+   "coach": "Which days work best? Pick {answer:days} or skip and I'll spread them out.",
+   "options": [
+    {
+     "value": 1,
+     "label": "Mon"
+    },
+    {
+     "value": 2,
+     "label": "Tue"
+    },
+    {
+     "value": 3,
+     "label": "Wed"
+    },
+    {
+     "value": 4,
+     "label": "Thu"
+    },
+    {
+     "value": 5,
+     "label": "Fri"
+    },
+    {
+     "value": 6,
+     "label": "Sat"
+    },
+    {
+     "value": 0,
+     "label": "Sun"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "minutes",
+   "section": "schedule",
+   "kind": "single",
+   "field": "sessionMinutes",
+   "required": true,
+   "coach": "How long can each session be?",
+   "options": [
+    {
+     "value": 20,
+     "label": "20 min"
+    },
+    {
+     "value": 30,
+     "label": "30 min"
+    },
+    {
+     "value": 45,
+     "label": "45 min"
+    },
+    {
+     "value": 60,
+     "label": "60 min"
+    },
+    {
+     "value": 75,
+     "label": "75+ min"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "location",
+   "section": "schedule",
+   "kind": "single",
+   "field": "location",
+   "required": true,
+   "coach": "Where will you train?",
+   "options": [
+    {
+     "value": "home",
+     "label": "At home"
+    },
+    {
+     "value": "gym",
+     "label": "At a gym"
+    },
+    {
+     "value": "both",
+     "label": "Both"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "equipment",
+   "section": "schedule",
+   "kind": "multi",
+   "field": "equipment",
+   "when": {
+    "q": "location",
+    "in": [
+     "home",
+     "both"
+    ]
+   },
+   "coach": "What do you have at home? Bodyweight always counts.",
+   "options": [
+    {
+     "value": "dumbbell",
+     "label": "Dumbbells"
+    },
+    {
+     "value": "kettlebell",
+     "label": "Kettlebell"
+    },
+    {
+     "value": "band",
+     "label": "Resistance bands"
+    },
+    {
+     "value": "step",
+     "label": "Step or stairs"
+    },
+    {
+     "value": "bench",
+     "label": "Bench / sturdy surface"
+    },
+    {
+     "value": "pullup_bar",
+     "label": "Pull-up bar"
+    },
+    {
+     "value": "stability_ball",
+     "label": "Swiss ball"
+    },
+    {
+     "value": "jump_rope",
+     "label": "Jump rope"
+    },
+    {
+     "value": "cardio_machine",
+     "label": "Treadmill / bike"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "dumbbell_weights",
+   "section": "schedule",
+   "kind": "single",
+   "when": {
+    "q": "equipment",
+    "includes": "dumbbell"
+   },
+   "coach": "What dumbbell weights do you have?",
+   "options": [
+    {
+     "value": "light",
+     "label": "Light only (1-4 kg)"
+    },
+    {
+     "value": "medium",
+     "label": "Up to 10 kg"
+    },
+    {
+     "value": "adjustable",
+     "label": "Adjustable / heavier"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "dislike",
+   "section": "preferences",
+   "kind": "multi",
+   "coach": "And anything you'd rather avoid?",
+   "options": [
+    {
+     "value": "none",
+     "label": "I'm open to anything",
+     "exclusive": true
+    },
+    {
+     "value": "jumping",
+     "label": "Jumping / burpees"
+    },
+    {
+     "value": "running",
+     "label": "Running"
+    },
+    {
+     "value": "floor",
+     "label": "Lots of floor work"
+    },
+    {
+     "value": "heavy",
+     "label": "Heavy barbell lifting"
+    },
+    {
+     "value": "long_cardio",
+     "label": "Long cardio"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "style",
+   "section": "preferences",
+   "kind": "single",
+   "coach": "How do you like a workout to feel?",
+   "options": [
+    {
+     "value": "straight",
+     "label": "Focused sets with rest"
+    },
+    {
+     "value": "circuit",
+     "label": "Circuits that keep me moving"
+    },
+    {
+     "value": "mixed",
+     "label": "A mix"
+    }
+   ],
+   "stage": "after_test"
+  },
+  {
+   "id": "why",
+   "section": "goals",
+   "kind": "single",
+   "probe": true,
+   "coach": "What's driving this for you right now? Your 'why' keeps us going on the hard days.",
+   "options": [
+    {
+     "value": "energy",
+     "label": "More energy"
+    },
+    {
+     "value": "confidence",
+     "label": "Feel confident in my body"
+    },
+    {
+     "value": "health",
+     "label": "Health numbers / doctor's advice"
+    },
+    {
+     "value": "event",
+     "label": "An event or date"
+    },
+    {
+     "value": "family",
+     "label": "Keep up with family"
+    },
+    {
+     "value": "stress",
+     "label": "Manage stress"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "win",
+   "section": "goals",
+   "kind": "text",
+   "field": "goalNote",
+   "optional": true,
+   "coach": "Picture 3 months from now. What would make you say 'this worked'?",
+   "stage": "later"
+  },
+  {
+   "id": "secondary_goal",
+   "section": "goals",
+   "kind": "single",
+   "field": "secondaryGoal",
+   "coach": "Anything you'd like as a second goal?",
+   "options": [
+    {
+     "value": "",
+     "label": "No, keep it simple"
+    },
+    {
+     "value": "fat_loss",
+     "label": "Lose fat"
+    },
+    {
+     "value": "muscle",
+     "label": "Tone up"
+    },
+    {
+     "value": "strength",
+     "label": "Strength"
+    },
+    {
+     "value": "endurance",
+     "label": "Stamina"
+    },
+    {
+     "value": "mobility",
+     "label": "Mobility"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "height",
+   "section": "you",
+   "kind": "number",
+   "field": "heightCm",
+   "unit": "cm",
+   "min": 120,
+   "max": 220,
+   "coach": "How tall are you?",
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "weight",
+   "section": "you",
+   "kind": "number",
+   "field": "weightKg",
+   "unit": "kg",
+   "min": 30,
+   "max": 250,
+   "step": 0.1,
+   "coach": "And your current weight? It stays private and only helps me set protein and energy targets.",
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "enjoy",
+   "section": "preferences",
+   "kind": "multi",
+   "probe": true,
+   "coach": "What kind of movement do you actually enjoy? I'll lean into it.",
+   "options": [
+    {
+     "value": "strength",
+     "label": "Lifting / strength"
+    },
+    {
+     "value": "dance",
+     "label": "Dance / cardio classes"
+    },
+    {
+     "value": "yoga",
+     "label": "Yoga / stretching"
+    },
+    {
+     "value": "outdoors",
+     "label": "Walking / outdoors"
+    },
+    {
+     "value": "hiit",
+     "label": "Short intense workouts"
+    },
+    {
+     "value": "sports",
+     "label": "Sports"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "current_days",
+   "section": "experience",
+   "kind": "single",
+   "field": "currentDaysPerWeek",
+   "coach": "In a normal week right now, how many days do you move on purpose (any exercise)?",
+   "options": [
+    {
+     "value": 0,
+     "label": "0"
+    },
+    {
+     "value": 1,
+     "label": "1"
+    },
+    {
+     "value": 2,
+     "label": "2"
+    },
+    {
+     "value": 3,
+     "label": "3"
+    },
+    {
+     "value": 4,
+     "label": "4"
+    },
+    {
+     "value": 5,
+     "label": "5+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "activities",
+   "section": "experience",
+   "kind": "multi",
+   "field": "currentActivities",
+   "when": {
+    "q": "current_days",
+    "gte": 1
+   },
+   "coach": "What do you usually do?",
+   "options": [
+    {
+     "value": "walking",
+     "label": "Walking"
+    },
+    {
+     "value": "running",
+     "label": "Running"
+    },
+    {
+     "value": "gym",
+     "label": "Gym"
+    },
+    {
+     "value": "home workouts",
+     "label": "Home workouts"
+    },
+    {
+     "value": "yoga",
+     "label": "Yoga"
+    },
+    {
+     "value": "pilates",
+     "label": "Pilates"
+    },
+    {
+     "value": "dance",
+     "label": "Dance / Zumba"
+    },
+    {
+     "value": "cycling",
+     "label": "Cycling"
+    },
+    {
+     "value": "sports",
+     "label": "Sports"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "trained_with",
+   "section": "experience",
+   "kind": "multi",
+   "when": {
+    "q": "training_age",
+    "gte": 1
+   },
+   "coach": "What have you trained with before?",
+   "options": [
+    {
+     "value": "bodyweight",
+     "label": "Bodyweight"
+    },
+    {
+     "value": "dumbbell",
+     "label": "Dumbbells"
+    },
+    {
+     "value": "band",
+     "label": "Bands"
+    },
+    {
+     "value": "machine",
+     "label": "Machines"
+    },
+    {
+     "value": "barbell",
+     "label": "Barbell"
+    },
+    {
+     "value": "kettlebell",
+     "label": "Kettlebell"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "steps",
+   "section": "experience",
+   "kind": "single",
+   "field": "dailySteps",
+   "coach": "Roughly how many steps do you walk a day?",
+   "options": [
+    {
+     "value": "lt3k",
+     "label": "Under 3,000"
+    },
+    {
+     "value": "3to6k",
+     "label": "3,000 to 6,000"
+    },
+    {
+     "value": "6to9k",
+     "label": "6,000 to 9,000"
+    },
+    {
+     "value": "gt9k",
+     "label": "9,000+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "job",
+   "section": "experience",
+   "kind": "single",
+   "field": "jobActivity",
+   "coach": "And your day job is mostly...",
+   "options": [
+    {
+     "value": "sedentary",
+     "label": "Sitting"
+    },
+    {
+     "value": "light",
+     "label": "Some standing and walking"
+    },
+    {
+     "value": "active",
+     "label": "Physically active"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "sleep",
+   "section": "recovery",
+   "kind": "single",
+   "field": "sleepHours",
+   "coach": "How much do you usually sleep?",
+   "options": [
+    {
+     "value": 5,
+     "label": "5 h or less"
+    },
+    {
+     "value": 6,
+     "label": "About 6 h"
+    },
+    {
+     "value": 7,
+     "label": "About 7 h"
+    },
+    {
+     "value": 8,
+     "label": "8 h or more"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "sleep_quality",
+   "section": "recovery",
+   "kind": "scale",
+   "field": "sleepQuality",
+   "low": "Restless",
+   "high": "Deep",
+   "coach": "And how well do you sleep?",
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "stress",
+   "section": "recovery",
+   "kind": "scale",
+   "field": "stress",
+   "low": "Calm",
+   "high": "Very stressed",
+   "coach": "Stress lately?",
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "energy",
+   "section": "recovery",
+   "kind": "scale",
+   "field": "energy",
+   "low": "Drained",
+   "high": "Energetic",
+   "coach": "Day-to-day energy?",
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "cycle",
+   "section": "recovery",
+   "kind": "single",
+   "when": {
+    "q": "sex",
+    "eq": "female"
+   },
+   "coach": "Does your menstrual cycle affect how you feel when training?",
+   "options": [
+    {
+     "value": "no",
+     "label": "Not really"
+    },
+    {
+     "value": "some",
+     "label": "A few low days a month"
+    },
+    {
+     "value": "a_lot",
+     "label": "Cramps / fatigue hit hard"
+    },
+    {
+     "value": "na",
+     "label": "Not applicable"
+    }
+   ],
+   "react": {
+    "a_lot": "Thanks. On those days, tell me and I'll swap in a lighter session. No guilt needed."
+   },
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "diet",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "dietPattern",
+   "coach": "Last section, food. How do you eat?",
+   "options": [
+    {
+     "value": "vegetarian",
+     "label": "Vegetarian"
+    },
+    {
+     "value": "eggetarian",
+     "label": "Eggetarian"
+    },
+    {
+     "value": "non_vegetarian",
+     "label": "Non-veg"
+    },
+    {
+     "value": "pescatarian",
+     "label": "Pescatarian"
+    },
+    {
+     "value": "vegan",
+     "label": "Vegan"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "meals",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "mealsPerDay",
+   "coach": "How many times a day do you eat, snacks included?",
+   "options": [
+    {
+     "value": 2,
+     "label": "2"
+    },
+    {
+     "value": 3,
+     "label": "3"
+    },
+    {
+     "value": 4,
+     "label": "4"
+    },
+    {
+     "value": 5,
+     "label": "5+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "protein",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "proteinPalms",
+   "coach": "How many palm-sized protein portions do you eat a day? One palm is about 100 g paneer, chicken or tofu, 2 eggs, a big bowl of curd, or a scoop of whey.",
+   "options": [
+    {
+     "value": 1,
+     "label": "0-1"
+    },
+    {
+     "value": 2,
+     "label": "2"
+    },
+    {
+     "value": 3,
+     "label": "3"
+    },
+    {
+     "value": 4,
+     "label": "4+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "veg",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "vegServings",
+   "coach": "Cups of vegetables a day?",
+   "options": [
+    {
+     "value": 1,
+     "label": "0-1"
+    },
+    {
+     "value": 2,
+     "label": "2"
+    },
+    {
+     "value": 3,
+     "label": "3"
+    },
+    {
+     "value": 4,
+     "label": "4+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "fruit",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "fruitServings",
+   "coach": "Fruit servings a day?",
+   "options": [
+    {
+     "value": 0,
+     "label": "0"
+    },
+    {
+     "value": 1,
+     "label": "1"
+    },
+    {
+     "value": 2,
+     "label": "2"
+    },
+    {
+     "value": 3,
+     "label": "3+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "water",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "waterLiters",
+   "coach": "Water a day?",
+   "options": [
+    {
+     "value": 1,
+     "label": "About 1 L"
+    },
+    {
+     "value": 1.5,
+     "label": "1.5 L"
+    },
+    {
+     "value": 2,
+     "label": "2 L"
+    },
+    {
+     "value": 3,
+     "label": "3 L+"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "sugary",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "sugaryDrinksPerWeek",
+   "coach": "Sweet drinks per week (soda, juice, sweet chai or coffee)?",
+   "options": [
+    {
+     "value": 0,
+     "label": "None"
+    },
+    {
+     "value": 3,
+     "label": "1-3"
+    },
+    {
+     "value": 7,
+     "label": "About daily"
+    },
+    {
+     "value": 14,
+     "label": "More than daily"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "fried",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "friedOrPackagedPerWeek",
+   "coach": "Fried or packaged snacks per week?",
+   "options": [
+    {
+     "value": 1,
+     "label": "Rarely"
+    },
+    {
+     "value": 3,
+     "label": "2-4 times"
+    },
+    {
+     "value": 7,
+     "label": "Most days"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "alcohol",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "alcoholPerWeek",
+   "coach": "Alcoholic drinks per week?",
+   "options": [
+    {
+     "value": 0,
+     "label": "None"
+    },
+    {
+     "value": 2,
+     "label": "1-3"
+    },
+    {
+     "value": 6,
+     "label": "4-7"
+    },
+    {
+     "value": 10,
+     "label": "More"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "late_eating",
+   "section": "nutrition",
+   "kind": "single",
+   "field": "lateEating",
+   "coach": "Is dinner usually within 2 hours of bedtime?",
+   "options": [
+    {
+     "value": false,
+     "label": "No"
+    },
+    {
+     "value": true,
+     "label": "Yes"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "supplements",
+   "section": "nutrition",
+   "kind": "multi",
+   "field": "supplements",
+   "coach": "Any supplements?",
+   "options": [
+    {
+     "value": "none",
+     "label": "None",
+     "exclusive": true
+    },
+    {
+     "value": "protein powder",
+     "label": "Protein powder"
+    },
+    {
+     "value": "creatine",
+     "label": "Creatine"
+    },
+    {
+     "value": "vitamin D",
+     "label": "Vitamin D"
+    },
+    {
+     "value": "B12",
+     "label": "B12"
+    },
+    {
+     "value": "iron",
+     "label": "Iron"
+    },
+    {
+     "value": "omega-3",
+     "label": "Omega-3"
+    },
+    {
+     "value": "calcium",
+     "label": "Calcium"
+    }
+   ],
+   "stage": "later",
+   "optional": true
+  },
+  {
+   "id": "injuries",
+   "section": "health",
+   "kind": "text",
+   "field": "injuries",
+   "optional": true,
+   "coach": "Any past injuries, surgeries or conditions I should know about? Skip if none.",
+   "stage": "later"
+  }
+ ]
 }

@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const open = useCallback((p?: string) => { setPrefill(p); setCoachOpen(true); }, []);
   const bumpPlan = useCallback(() => setPlanVersion((v) => v + 1), []);
-  const focus = path.startsWith("/workout/") || path.startsWith("/retest");
+  const focus = path.startsWith("/workout/") || path.startsWith("/retest") || path.startsWith("/ask");
   const showChrome = ready && !onboarding && !focus;
 
   return (
@@ -62,10 +62,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         {showChrome && (
           <>
             <button type="button" onClick={() => open()} aria-label="Talk to Coach Maya"
-              className="fixed right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-accent pl-2 pr-4 font-semibold text-accent-ink shadow-lg shadow-black/15 active:scale-95"
-              style={{ bottom: "calc(76px + env(safe-area-inset-bottom))" }}>
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-lg font-black">M</span>
-              Coach
+              className="fixed right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-accent text-accent-ink shadow-lg shadow-black/20 active:scale-95"
+              style={{ bottom: "calc(80px + env(safe-area-inset-bottom))" }}>
+              <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v11H9l-5 4V5z" /><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" /></svg>
             </button>
             <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
               <div className="mx-auto grid max-w-xl grid-cols-4">

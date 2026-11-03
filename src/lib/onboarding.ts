@@ -3,7 +3,8 @@ import { GYM_EQUIPMENT, type EquipKey } from "./science/patterns";
 import type { Intake } from "./science/types";
 import { QUESTIONS, type Question, type When } from "./coach/skill";
 
-export type Answer = { value?: unknown; text?: string };
+export type Answer = { value?: unknown; text?: string; skipped?: boolean; at?: string };
+export type Stage = Question["stage"];
 export type Answers = Record<string, Answer>;
 
 const asArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : v === undefined || v === null || v === "" ? [] : [v]);
@@ -21,8 +22,13 @@ export function matches(when: When | undefined, answers: Answers): boolean {
 }
 
 /** Questions to ask, in order, given the answers so far (branches open as she answers). */
-export function visibleQuestions(answers: Answers): Question[] {
-  return QUESTIONS.filter((q) => matches(q.when, answers));
+export function visibleQuestions(answers: Answers, stages?: Stage[]): Question[] {
+  return QUESTIONS.filter((q) => (!stages || stages.includes(q.stage)) && matches(q.when, answers));
+}
+
+/** "Later" questions still waiting for an answer, in the coach skill's priority order. */
+export function pendingLater(answers: Answers): Question[] {
+  return visibleQuestions(answers, ["later"]).filter((q) => q.kind !== "info" && !answers[q.id]);
 }
 
 export function isAnswered(q: Question, a: Answer | undefined): boolean {

@@ -17,7 +17,9 @@ export type Proposal = {
 };
 
 export type OnboardingState = {
-  stage?: "questions" | "trial-intro" | "trials" | "health" | "analysis" | "plan";
+  stage?: "questions" | "trial-intro" | "trials" | "debrief" | "options" | "notify";
+  qid?: string;
+  chosenSplit?: string;
   qIndex?: number;
   trialIndex?: number;
   answers: Answers;
@@ -162,4 +164,27 @@ export async function reopenOnboarding() {
   const { error } = await supabase().from("profiles")
     .update({ onboarding_completed_at: null, onboarding: { ...state, stage: "questions", summary: undefined } }).eq("id", id);
   if (error) throw error;
+}
+
+// --- notification settings ------------------------------------------------------------
+import type { NotifyPrefs } from "./push";
+export async function getNotifyPrefs(): Promise<NotifyPrefs | null> {
+  const { data } = await supabase().from("profiles").select("notify").maybeSingle();
+  const n = data?.notify as NotifyPrefs | null | undefined;
+  return n && n.reminderTime ? n : null;
+}
+export async function saveNotifyPrefs(prefs: NotifyPrefs) {
+  const id = await uid();
+  const { error } = await supabase().from("profiles").update({ notify: prefs }).eq("id", id);
+  if (error) throw error;
+}
+
+// --- answers asked after onboarding ("later" questions) ---------------------------------
+export async function saveLaterAnswer(questionId: string, answer: import("./onboarding").Answer) {
+  const { state } = await getOnboarding();
+  const next = { ...state, answers: { ...state.answers, [questionId]: { ...answer, at: new Date().toISOString() } } };
+  const id = await uid();
+  const { error } = await supabase().from("profiles").update({ onboarding: next }).eq("id", id);
+  if (error) throw error;
+  return next;
 }

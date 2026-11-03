@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCoach } from "@/components/AppShell";
 import { CoachBubble } from "@/components/CoachBubble";
+import { PendingQuestionCard } from "@/components/PendingQuestionCard";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { cx, Spinner } from "@/components/ui";
 import { getLatestIntake } from "@/lib/data";
@@ -21,6 +22,9 @@ export default function Today() {
     getLatestIntake().then((i) => setName(i?.name?.split(" ")[0] ?? ""));
     const q = new URLSearchParams(window.location.search);
     setFlag(q.has("welcome") ? "welcome" : q.has("done") ? "done" : null);
+    if (q.get("coach") === "missed") coach.open("I missed a few workouts");
+    // run once on open (deep link from a notification)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <Spinner />;
@@ -45,10 +49,16 @@ export default function Today() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <p className="text-sm text-muted">{today.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</p>
-        <h1 className="text-[26px] font-bold leading-tight">{greet}{name ? `, ${name}` : ""}</h1>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted">{today.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</p>
+          <h1 className="text-[26px] font-bold leading-tight">{greet}{name ? `, ${name}` : ""}</h1>
+        </div>
+        <Link href="/settings" aria-label="Settings" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" /></svg>
+        </Link>
       </header>
+      <PendingQuestionCard />
 
       {flag === "welcome" && <CoachBubble>Your plan is ready! Start whenever you like. I&apos;m one tap away if anything needs changing.</CoachBubble>}
       {flag === "done" && <CoachBubble>Workout logged. Great work! 💪 Consistency beats perfection.</CoachBubble>}

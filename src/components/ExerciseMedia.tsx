@@ -28,7 +28,7 @@ export function ExerciseMedia({ id, alt, size = "lg", className }: { id: string;
     <div className={cx(box, "relative overflow-hidden bg-white", className)}>
       {[0, 1].map((n) => (
         <Image
-          key={n} src={`/demo/${id}/${n}.jpg`} alt={n === 0 ? alt : ""} fill sizes={sizes}
+          key={n} src={`/demo/${id}/${n}.jpg`} alt={n === 0 ? alt : ""} fill sizes={sizes} unoptimized
           className={cx("object-contain transition-opacity duration-500", frame === n || (!animate && n === 0) ? "opacity-100" : "opacity-0")}
           priority={size === "lg" && n === 0}
         />

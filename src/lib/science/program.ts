@@ -29,15 +29,50 @@ const T: Record<string, { title: string; focus: string; slots: Slot[] }> = {
   UB: { title: "Upper B", focus: "Shoulders · Back · Core", slots: [{ p: "vpush", role: "main", v: 1 }, { p: "vpull", role: "main", v: 1 }, { p: "hpush", role: "acc", v: 1 }, { p: "hpull", role: "acc", v: 1 }, { p: "core_rot", role: "acc" }, { p: "shoulders", role: "acc", v: 1 }, { p: "biceps", role: "acc", v: 1 }] },
   LB: { title: "Lower B", focus: "Hinge focus · Single-leg", slots: [{ p: "hinge", role: "main", v: 1 }, { p: "lunge", role: "main", v: 1 }, { p: "squat", role: "acc", v: 1 }, { p: "glute", role: "acc", v: 1 }, { p: "carry", role: "acc" }, { p: "core", role: "acc", v: 1 }] },
   CD: { title: "Conditioning & Core", focus: "Intervals · Core · Mobility", slots: [{ p: "core", role: "acc" }, { p: "core_rot", role: "acc" }, { p: "glute", role: "acc" }, { p: "carry", role: "acc" }] },
+  PU: { title: "Push", focus: "Chest · Shoulders · Triceps", slots: [{ p: "hpush", role: "main" }, { p: "vpush", role: "main" }, { p: "hpush", role: "acc", v: 1 }, { p: "shoulders", role: "acc" }, { p: "triceps", role: "acc" }, { p: "core", role: "acc" }] },
+  PL: { title: "Pull", focus: "Back · Biceps · Core", slots: [{ p: "vpull", role: "main" }, { p: "hpull", role: "main" }, { p: "hpull", role: "acc", v: 1 }, { p: "biceps", role: "acc" }, { p: "core_rot", role: "acc" }, { p: "carry", role: "acc" }] },
+  LG: { title: "Legs", focus: "Squat · Hinge · Glutes", slots: [{ p: "squat", role: "main" }, { p: "hinge", role: "main" }, { p: "lunge", role: "acc" }, { p: "glute", role: "acc" }, { p: "calves", role: "acc" }, { p: "core", role: "acc" }] },
+  PU2: { title: "Push B", focus: "Shoulders · Chest · Triceps", slots: [{ p: "vpush", role: "main", v: 1 }, { p: "hpush", role: "main", v: 1 }, { p: "shoulders", role: "acc", v: 1 }, { p: "triceps", role: "acc", v: 1 }, { p: "core_rot", role: "acc" }] },
+  PL2: { title: "Pull B", focus: "Rows · Pull-downs · Biceps", slots: [{ p: "hpull", role: "main", v: 1 }, { p: "vpull", role: "main", v: 1 }, { p: "biceps", role: "acc", v: 1 }, { p: "shoulders", role: "acc", v: 1 }, { p: "core", role: "acc", v: 1 }] },
+  LG2: { title: "Legs B", focus: "Hinge · Single-leg · Glutes", slots: [{ p: "hinge", role: "main", v: 1 }, { p: "lunge", role: "main", v: 1 }, { p: "squat", role: "acc", v: 1 }, { p: "glute", role: "acc", v: 1 }, { p: "calves", role: "acc" }] },
+  CH: { title: "Chest & Triceps", focus: "Pressing · Triceps", slots: [{ p: "hpush", role: "main" }, { p: "hpush", role: "main", v: 1 }, { p: "triceps", role: "acc" }, { p: "triceps", role: "acc", v: 1 }, { p: "core", role: "acc" }] },
+  BK: { title: "Back & Biceps", focus: "Pulling · Biceps", slots: [{ p: "vpull", role: "main" }, { p: "hpull", role: "main" }, { p: "hpull", role: "acc", v: 1 }, { p: "biceps", role: "acc" }, { p: "biceps", role: "acc", v: 1 }] },
+  SH: { title: "Shoulders & Core", focus: "Overhead · Delts · Core", slots: [{ p: "vpush", role: "main" }, { p: "shoulders", role: "acc" }, { p: "shoulders", role: "acc", v: 1 }, { p: "core", role: "acc" }, { p: "core_rot", role: "acc" }, { p: "carry", role: "acc" }] },
+  GL: { title: "Glutes & Arms", focus: "Glutes · Arms", slots: [{ p: "hinge", role: "main", v: 1 }, { p: "glute", role: "acc" }, { p: "glute", role: "acc", v: 1 }, { p: "biceps", role: "acc" }, { p: "triceps", role: "acc" }] },
 };
 
-const SPLITS: Record<number, { name: string; days: string[] }> = {
-  2: { name: "Full body ×2", days: ["FA", "FB"] },
-  3: { name: "Full body ×3", days: ["FA", "FB", "FC"] },
-  4: { name: "Upper / Lower", days: ["UA", "LA", "UB", "LB"] },
-  5: { name: "Upper / Lower + Conditioning", days: ["UA", "LA", "CD", "UB", "LB"] },
-  6: { name: "Upper / Lower + Conditioning", days: ["UA", "LA", "CD", "UB", "LB", "CD"] },
+export type SplitKey = "full" | "upper_lower" | "ppl" | "body_part";
+type SplitDef = { name: string; blurb: string; best: string; days: Partial<Record<number, string[]>> };
+export const SPLITS: Record<SplitKey, SplitDef> = {
+  full: {
+    name: "Full body", blurb: "Every session trains your whole body: squat, hinge, push, pull and core.",
+    best: "Best for beginners and busy weeks: each muscle gets worked 2-3 times a week, and a missed day costs little.",
+    days: { 2: ["FA", "FB"], 3: ["FA", "FB", "FC"], 4: ["FA", "FB", "FC", "CD"], 5: ["FA", "FB", "CD", "FC", "CD"], 6: ["FA", "FB", "FC", "FA", "FB", "FC"] },
+  },
+  upper_lower: {
+    name: "Upper / Lower", blurb: "Alternate upper-body days and leg & glute days.",
+    best: "Great at 4 days: more exercises per muscle, still each muscle twice a week.",
+    days: { 2: ["UA", "LA"], 3: ["UA", "LA", "FC"], 4: ["UA", "LA", "UB", "LB"], 5: ["UA", "LA", "CD", "UB", "LB"], 6: ["UA", "LA", "CD", "UB", "LB", "CD"] },
+  },
+  ppl: {
+    name: "Push / Pull / Legs", blurb: "One day for pushing muscles, one for pulling, one for legs.",
+    best: "Popular for building muscle with 3 or 6 days a week; longer, more focused sessions.",
+    days: { 3: ["PU", "PL", "LG"], 4: ["PU", "PL", "LG", "FA"], 5: ["PU", "PL", "LG", "UA", "LA"], 6: ["PU", "PL", "LG", "PU2", "PL2", "LG2"] },
+  },
+  body_part: {
+    name: "Body-part split", blurb: "Classic 'bro split': each day focuses on one or two body parts.",
+    best: "Lots of volume per muscle once a week; suits experienced lifters who enjoy focused pump sessions.",
+    days: { 4: ["CH", "LG", "BK", "SH"], 5: ["CH", "BK", "LG", "SH", "GL"], 6: ["CH", "BK", "LG", "SH", "GL", "LG2"] },
+  },
 };
+
+/** The split Coach Maya recommends for this person (used to rank the 3 options). */
+export function recommendSplit(days: number, level: Analysis["level"]): SplitKey {
+  if (level === "beginner") return days >= 4 ? "upper_lower" : "full";
+  if (days <= 3) return level === "advanced" && days === 3 ? "ppl" : "full";
+  if (days === 4 || days === 5) return "upper_lower";
+  return "ppl";
+}
 
 export const DEFAULT_WEEKDAYS = Object.fromEntries(Object.entries(skill.programming.defaultWeekdays).map(([k, v]) => [Number(k), v])) as Record<number, number[]>;
 
@@ -105,7 +140,7 @@ export function buildCardio(intake: Intake, analysis: Analysis): CardioPlan {
   return { sessionsPerWeek: 3, minutes: 40, type: "Zone 2 + HIIT", detail: "2× 40 min Zone 2, 1× HIIT: 8 × 1 min hard / 1 min easy, or 4 × 4 min at RPE 8 with 3 min easy.", stepGoal };
 }
 
-export type ProgramOpts = { intensityOffset?: number; trial?: TrialPlan; constraints?: Constraints };
+export type ProgramOpts = { intensityOffset?: number; trial?: TrialPlan; constraints?: Constraints; splitKey?: SplitKey };
 
 const EMPHASIS_SLOTS: Record<string, Pattern[]> = {
   glute: ["glute"], arms: ["biceps", "triceps"], hpull: ["hpull"], core: ["core"], hpush: ["hpush"], vpull: ["vpull"],
@@ -119,7 +154,9 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: Progra
   const trial = opts.trial;
   const cons: Constraints = opts.constraints ?? { excludeIds: [], excludeTags: [], emphasis: [], why: [] };
   const days = Math.min(6, Math.max(2, intake.daysPerWeek));
-  const split = SPLITS[days];
+  const wanted = opts.splitKey && SPLITS[opts.splitKey]?.days[days] ? opts.splitKey : recommendSplit(days, analysis.level);
+  const splitKey: SplitKey = SPLITS[wanted].days[days] ? wanted : "full";
+  const split = { name: `${SPLITS[splitKey].name} ×${days}`, days: SPLITS[splitKey].days[days]! };
   const weekdays = intake.preferredDays?.length === days ? [...intake.preferredDays].sort((a, b) => a - b) : DEFAULT_WEEKDAYS[days];
   const equip = new Set<EquipKey>(["bodyweight", ...(intake.equipment ?? [])]);
   const excludeIds = new Set(cons.excludeIds);
@@ -159,14 +196,14 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: Progra
     const slots = [...t.slots];
     // her stated focus areas and milestones get a slot early in the session
     for (const e of cons.emphasis) for (const p of EMPHASIS_SLOTS[e] ?? []) {
-      const lowerDay = t.key.startsWith("L"), upperDay = t.key.startsWith("U");
+      const lowerDay = ["LA", "LB", "LG", "LG2", "GL"].includes(t.key), upperDay = ["UA", "UB", "PU", "PL", "PU2", "PL2", "CH", "BK", "SH"].includes(t.key);
       if (t.key === "CD" && !["core", "glute"].includes(p)) continue;
       if (lowerDay && UPPER_PATTERNS.has(p)) continue;
       if (upperDay && p === "glute") continue;
       if (!slots.slice(0, maxEx).some((s) => s.p === p)) slots.splice(Math.min(3, slots.length), 0, { p, role: "acc" });
     }
     if (weakest === "core" && !slots.slice(0, maxEx).some((s) => s.p === "core")) slots.splice(3, 0, { p: "core", role: "acc" });
-    if (weakest === "lower" && t.key.startsWith("F")) slots.splice(3, 0, { p: "glute", role: "acc", v: 1 });
+    if (weakest === "lower" && ["FA", "FB", "FC"].includes(t.key)) slots.splice(3, 0, { p: "glute", role: "acc", v: 1 });
     if (faults.includes("glute-med") && !slots.slice(0, maxEx).some((s) => s.p === "glute")) slots.splice(4, 0, { p: "glute", role: "acc" });
     const items: { slot: Slot; ex: Ex }[] = [];
     for (const slot of slots) {
@@ -272,6 +309,7 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: Progra
     createdFor: { level: analysis.level, goal: intake.primaryGoal, daysPerWeek: days, sessionMinutes: intake.sessionMinutes, equipment: intake.equipment },
     constraints: cons,
     trial,
+    splitKey,
     why,
     intensityOffset,
     split: split.name,
