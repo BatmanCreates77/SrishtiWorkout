@@ -18,6 +18,7 @@ import { answersToIntake, canContinue, fill, reaction, visibleQuestions, type An
 import { buildFromOnboarding, type Built } from "@/lib/plan-builder";
 import { programBlocked } from "@/lib/science/analysis";
 import { toISODate } from "@/lib/science/schedule";
+import { supabase } from "@/lib/supabase/client";
 import type { TestResults, TrialResult } from "@/lib/science/types";
 
 type FollowUp = { section: string; ask: string; options: string[] };
@@ -44,9 +45,12 @@ export default function OnboardingPage() {
 
   // load + resume
   useEffect(() => {
-    getOnboarding().then(({ state, completedAt }) => {
+    Promise.all([getOnboarding(), supabase().auth.getUser()]).then(([{ state, completedAt }, { data }]) => {
       if (completedAt) { router.replace("/home"); return; }
       const s = { stage: "questions" as const, ...state };
+      // she already told us her name at sign-up
+      const signupName = (data.user?.user_metadata?.display_name as string | undefined)?.trim();
+      if (signupName && !s.answers.name) s.answers = { ...s.answers, name: { text: signupName } };
       stRef.current = s; setSt(s);
       const vis = visibleQuestions(s.answers);
       setQid(vis.find((q) => q.id === (state as { qid?: string }).qid)?.id ?? vis[0].id);
