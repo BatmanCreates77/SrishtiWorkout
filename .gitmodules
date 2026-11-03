@@ -1,0 +1,8 @@
+[submodule "vendor/openGym"]
+	path = vendor/openGym
+	url = https://github.com/DuarteSantos8/openGym.git
+	shallow = true
+[submodule "vendor/free-exercise-db"]
+	path = vendor/free-exercise-db
+	url = https://github.com/yuhonas/free-exercise-db.git
+	shallow = true

@@ -49,6 +49,22 @@ export type Intake = {
   friedOrPackagedPerWeek: number;
   lateEating: boolean;
   supplements: string[];
+  // everything else the coach asked (question id -> value), plus her own words per question
+  extras?: Record<string, unknown>;
+  notes?: Record<string, string>;
+  followups?: { section: string; ask: string; answer: string }[];
+};
+
+export type Feel = "easy" | "right" | "hard" | "couldnt";
+export type TrialResult = {
+  id: string; // trial id, e.g. "push"
+  exerciseId: string; // the variant she actually did
+  variant: "base" | "easier" | "harder";
+  value: number; // reps (per side for lunges) or seconds
+  feel: Feel;
+  formFlags: string[];
+  pain: boolean;
+  note?: string;
 };
 
 export type TestKey =
@@ -66,6 +82,7 @@ export type TestResults = {
   balance?: number; // seconds, weaker leg
   waist?: number; // cm
   deadHang?: number; // seconds
+  trials?: TrialResult[];
 };
 
 export type Domain = "cardio" | "upper" | "lower" | "core" | "mobility" | "balance" | "bodyComp";
@@ -108,6 +125,7 @@ export type Prescription = {
   restSec: number;
   hold?: boolean;
   note?: string;
+  swappedFrom?: string;
 };
 
 export type Session = {
@@ -125,9 +143,30 @@ export type Session = {
 
 export type CardioPlan = { sessionsPerWeek: number; minutes: number; type: string; detail: string; stepGoal: number };
 
+export type Constraints = {
+  excludeIds: string[];
+  excludeTags: string[];
+  emphasis: string[]; // patterns to add or prioritise
+  cardioStyle?: "short" | "intervals" | "walks";
+  sessionStyle?: "circuit" | "straight";
+  mobilityExtra?: boolean;
+  why: string[]; // human-readable reasons, shown in "Why this plan"
+};
+
+export type TrialPlan = {
+  patternTiers: Record<string, number>; // pattern -> tier 1..3
+  preferred: Record<string, string>; // pattern -> exercise id she managed in the trial
+  repCaps: Record<string, string>; // pattern -> starting rep range when her trial was low
+  flags: string[];
+  why: string[];
+};
+
 export type Program = {
-  version: 1;
+  version: 1 | 2;
   createdFor: { level: string; goal: Goal; daysPerWeek: number; sessionMinutes: number; equipment: EquipKey[] };
+  constraints?: Constraints;
+  trial?: TrialPlan;
+  why?: string[];
   intensityOffset: number; // -1 easier, 0 normal, +1 harder
   split: string;
   weeks: Session[][];

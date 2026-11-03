@@ -1,13 +1,11 @@
 import curated from "@/data/curated-exercises.json";
-import { CUSTOM_EXERCISES, PATTERNS, type Candidate, type EquipKey, type Pattern } from "./patterns";
-import type { Analysis, CardioPlan, Goal, Intake, Prescription, Program, Session } from "./types";
+import { skill } from "@/lib/coach/skill";
+import { BRISK_WALK_ID, PATTERNS, WARMUP_IDS, type Candidate, type EquipKey, type Pattern, type Tag } from "./patterns";
+import type { Analysis, CardioPlan, Constraints, Goal, Intake, Prescription, Program, Session, TrialPlan } from "./types";
 
-type Ex = { id: string; name: string; equipment: string; target: string; bodyPart: string; instructions: string[]; hold?: boolean; category: string; secondaryMuscles: string[] };
+export type Ex = { id: string; name: string; equipment: string; target: string; bodyPart: string; instructions: string[]; description?: string; hold?: boolean; category: string; secondaryMuscles: string[] };
 
-const CATALOG: Record<string, Ex> = {
-  ...(curated as unknown as Record<string, Ex>),
-  ...Object.fromEntries(CUSTOM_EXERCISES.map((e) => [e.id, e as Ex])),
-};
+const CATALOG = curated as unknown as Record<string, Ex>;
 
 export function getExercise(id: string): Ex | undefined {
   return CATALOG[id];
@@ -19,14 +17,7 @@ export function titleCase(s: string) {
 
 // ---------------------------------------------------------------------------
 type GoalCfg = { mainSets: number; mainReps: string; accSets: number; accReps: string; rir: number; mainRest: number; accRest: number };
-const GOALS: Record<Goal, GoalCfg> = {
-  strength: { mainSets: 4, mainReps: "4-6", accSets: 3, accReps: "8-10", rir: 2, mainRest: 150, accRest: 90 },
-  muscle: { mainSets: 3, mainReps: "8-12", accSets: 3, accReps: "10-15", rir: 2, mainRest: 90, accRest: 60 },
-  fat_loss: { mainSets: 3, mainReps: "10-12", accSets: 3, accReps: "12-15", rir: 2, mainRest: 60, accRest: 45 },
-  endurance: { mainSets: 3, mainReps: "12-15", accSets: 2, accReps: "15-20", rir: 3, mainRest: 45, accRest: 30 },
-  general: { mainSets: 3, mainReps: "8-12", accSets: 2, accReps: "10-15", rir: 2, mainRest: 75, accRest: 60 },
-  mobility: { mainSets: 2, mainReps: "10-12", accSets: 2, accReps: "12-15", rir: 3, mainRest: 60, accRest: 45 },
-};
+const GOALS = skill.programming.goals as Record<Goal, GoalCfg>;
 
 type Slot = { p: Pattern; role: "main" | "acc"; v?: number };
 const T: Record<string, { title: string; focus: string; slots: Slot[] }> = {
@@ -48,9 +39,7 @@ const SPLITS: Record<number, { name: string; days: string[] }> = {
   6: { name: "Upper / Lower + Conditioning", days: ["UA", "LA", "CD", "UB", "LB", "CD"] },
 };
 
-export const DEFAULT_WEEKDAYS: Record<number, number[]> = {
-  2: [1, 4], 3: [1, 3, 5], 4: [1, 2, 4, 5], 5: [1, 2, 3, 5, 6], 6: [1, 2, 3, 4, 5, 6],
-};
+export const DEFAULT_WEEKDAYS = Object.fromEntries(Object.entries(skill.programming.defaultWeekdays).map(([k, v]) => [Number(k), v])) as Record<number, number[]>;
 
 const DOMAIN_FOR: Partial<Record<Pattern, "lower" | "upper" | "core" | "cardio" | "mobility">> = {
   squat: "lower", hinge: "lower", lunge: "lower", glute: "lower", calves: "lower",
@@ -66,9 +55,19 @@ function targetTier(score: number | undefined, level: Analysis["level"]): number
 
 const LOADABLE: EquipKey[] = ["dumbbell", "kettlebell", "barbell", "cable", "machine", "smith", "trap_bar", "band"];
 
-function pick(p: Pattern, equip: Set<EquipKey>, tier: number, variant: number, avoid: Set<string>, role: "main" | "acc" = "acc"): Candidate | undefined {
-  const usable = PATTERNS[p].filter((c) => c.needs.every((n) => equip.has(n)));
+type PickCtx = { equip: Set<EquipKey>; excludeIds: Set<string>; excludeTags: Set<Tag>; preferred?: string };
+
+export function allowed(c: Candidate, ctx: PickCtx) {
+  return c.needs.every((n) => ctx.equip.has(n)) && !ctx.excludeIds.has(c.id) && !(c.tags ?? []).some((t) => ctx.excludeTags.has(t));
+}
+
+function pick(p: Pattern, ctx: PickCtx, tier: number, variant: number, avoid: Set<string>, role: "main" | "acc" = "acc"): Candidate | undefined {
+  const equip = ctx.equip;
+  const usable = PATTERNS[p].filter((c) => allowed(c, ctx));
   if (!usable.length) return undefined;
+  // The exact variant she managed in the movement trial wins for her first block.
+  const pref = ctx.preferred && usable.find((c) => c.id === ctx.preferred);
+  if (pref && variant === 0) return pref;
   const scored = usable
     .map((c) => {
       const loaded = c.needs.some((n) => LOADABLE.includes(n));
@@ -94,7 +93,7 @@ function repsFor(ex: Ex, role: "main" | "acc", cfg: GoalCfg, p: Pattern): string
 }
 
 export function maxExercises(minutes: number) {
-  return minutes <= 30 ? 4 : minutes <= 45 ? 5 : minutes <= 60 ? 6 : 7;
+  return skill.programming.exercisesByMinutes.find((r) => minutes <= r.max)?.count ?? 6;
 }
 
 export function buildCardio(intake: Intake, analysis: Analysis): CardioPlan {
@@ -106,41 +105,74 @@ export function buildCardio(intake: Intake, analysis: Analysis): CardioPlan {
   return { sessionsPerWeek: 3, minutes: 40, type: "Zone 2 + HIIT", detail: "2× 40 min Zone 2, 1× HIIT: 8 × 1 min hard / 1 min easy, or 4 × 4 min at RPE 8 with 3 min easy.", stepGoal };
 }
 
-export function generateProgram(intake: Intake, analysis: Analysis, opts: { intensityOffset?: number } = {}): Program {
+export type ProgramOpts = { intensityOffset?: number; trial?: TrialPlan; constraints?: Constraints };
+
+const EMPHASIS_SLOTS: Record<string, Pattern[]> = {
+  glute: ["glute"], arms: ["biceps", "triceps"], hpull: ["hpull"], core: ["core"], hpush: ["hpush"], vpull: ["vpull"],
+};
+const UPPER_PATTERNS = new Set<Pattern>(["hpush", "vpush", "hpull", "vpull", "biceps", "triceps", "shoulders"]);
+// a trial on one pattern also informs its close relatives
+const TRIAL_FOR: Partial<Record<Pattern, Pattern>> = { core_rot: "core", vpush: "hpush", vpull: "hpull", glute: "hinge", triceps: "hpush" };
+
+export function generateProgram(intake: Intake, analysis: Analysis, opts: ProgramOpts = {}): Program {
   const intensityOffset = opts.intensityOffset ?? 0;
+  const trial = opts.trial;
+  const cons: Constraints = opts.constraints ?? { excludeIds: [], excludeTags: [], emphasis: [], why: [] };
   const days = Math.min(6, Math.max(2, intake.daysPerWeek));
   const split = SPLITS[days];
-  const weekdays = intake.preferredDays?.length === days ? [...intake.preferredDays].sort() : DEFAULT_WEEKDAYS[days];
+  const weekdays = intake.preferredDays?.length === days ? [...intake.preferredDays].sort((a, b) => a - b) : DEFAULT_WEEKDAYS[days];
   const equip = new Set<EquipKey>(["bodyweight", ...(intake.equipment ?? [])]);
+  const excludeIds = new Set(cons.excludeIds);
+  const excludeTags = new Set(cons.excludeTags as Tag[]);
   const cfg = { ...GOALS[intake.primaryGoal] };
   const beginner = analysis.level === "beginner";
   const cautious = Object.values(intake.parq ?? {}).some(Boolean);
   const maxEx = maxExercises(intake.sessionMinutes);
   const faults = analysis.correctives.join(" ");
+  const circuit = cons.sessionStyle === "circuit";
+  const ctxFor = (p: Pattern): PickCtx => ({ equip, excludeIds, excludeTags, preferred: trial?.preferred[p] });
+
+  const tierFor = (p: Pattern) => {
+    const t = trial?.patternTiers[p] ?? trial?.patternTiers[TRIAL_FOR[p] ?? ""];
+    if (t !== undefined) return t;
+    const dom = DOMAIN_FOR[p];
+    return targetTier(dom ? analysis.domains[dom] : undefined, analysis.level);
+  };
 
   // weakest domain gets an extra slot priority
   const weakest = (Object.entries(analysis.domains) as [string, number][])
     .filter(([d]) => d !== "bodyComp")
     .sort((a, b) => a[1] - b[1])[0]?.[0];
 
-  const warmupIds = ["c-cat-cow", "c-worlds-greatest-stretch"];
-  if (faults.includes("ankle")) warmupIds.push("c-ankle-rocks");
-  if (faults.includes("hip-flexor") || intake.primaryGoal === "mobility" || weakest === "mobility") warmupIds.push("c-hip-flexor-stretch");
+  const mobilityCtx: PickCtx = { equip, excludeIds, excludeTags };
+  const warmupPool = [WARMUP_IDS.greatest, WARMUP_IDS.catCow];
+  if (faults.includes("ankle")) warmupPool.push(WARMUP_IDS.ankle);
+  if (faults.includes("hip-flexor") || intake.primaryGoal === "mobility" || weakest === "mobility" || cons.mobilityExtra) warmupPool.push(WARMUP_IDS.hipFlexor);
+  const warmupIds = warmupPool.filter((id) => {
+    const c = PATTERNS.mobility.find((x) => x.id === id);
+    return !c || allowed(c, mobilityCtx);
+  });
 
   const templates = split.days.map((k, i) => ({ ...T[k], key: k, idx: i }));
   const baseSessions = templates.map((t) => {
     const used = new Set<string>();
     let slots = [...t.slots];
+    // her stated focus areas and milestones get a slot early in the session
+    for (const e of cons.emphasis) for (const p of EMPHASIS_SLOTS[e] ?? []) {
+      const lowerDay = t.key.startsWith("L"), upperDay = t.key.startsWith("U");
+      if (t.key === "CD" && !["core", "glute"].includes(p)) continue;
+      if (lowerDay && UPPER_PATTERNS.has(p)) continue;
+      if (upperDay && p === "glute") continue;
+      if (!slots.slice(0, maxEx).some((s) => s.p === p)) slots.splice(Math.min(3, slots.length), 0, { p, role: "acc" });
+    }
     if (weakest === "core" && !slots.slice(0, maxEx).some((s) => s.p === "core")) slots.splice(3, 0, { p: "core", role: "acc" });
     if (weakest === "lower" && t.key.startsWith("F")) slots.splice(3, 0, { p: "glute", role: "acc", v: 1 });
     if (faults.includes("glute-med") && !slots.slice(0, maxEx).some((s) => s.p === "glute")) slots.splice(4, 0, { p: "glute", role: "acc" });
-    slots = slots.slice(0, maxEx);
     const items: { slot: Slot; ex: Ex }[] = [];
     for (const slot of slots) {
-      const dom = DOMAIN_FOR[slot.p];
-      const tier = targetTier(dom ? analysis.domains[dom] : undefined, analysis.level);
-      const c = pick(slot.p, equip, tier, (slot.v ?? 0) + Math.floor(t.idx / 2), used, slot.role);
-      if (!c) continue;
+      if (items.length >= maxEx) break;
+      const c = pick(slot.p, ctxFor(slot.p), tierFor(slot.p), (slot.v ?? 0) + Math.floor(t.idx / 2), used, slot.role);
+      if (!c || used.has(c.id)) continue;
       const ex = getExercise(c.id);
       if (!ex) continue;
       used.add(c.id);
@@ -149,8 +181,10 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: { inte
     return { t, items };
   });
 
+  const meso = skill.programming.mesocycle;
   const weeks: Session[][] = [];
   for (let w = 1; w <= 4; w++) {
+    const m = meso.find((x) => x.week === w);
     const week: Session[] = baseSessions.map(({ t, items }, i) => {
       const main: Prescription[] = items.map(({ slot, ex }) => {
         let sets = slot.role === "main" ? cfg.mainSets : cfg.accSets;
@@ -159,42 +193,48 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: { inte
         if (cautious) rir = Math.max(rir, 3);
         sets += intensityOffset > 0 && slot.role === "main" ? 1 : intensityOffset < 0 ? -1 : 0;
         rir -= intensityOffset;
-        if (w === 2 && slot.role === "main") sets += 1;
-        if (w === 3) rir -= 1;
-        if (w === 4) { sets = Math.max(2, Math.round(sets * 0.6)); rir = 4; }
+        if (slot.role === "main") sets += m?.mainSetsDelta ?? 0;
+        rir += m?.rirDelta ?? 0;
+        if (m?.deload) { sets = Math.max(2, Math.round(sets * 0.6)); rir = 4; }
         sets = Math.min(5, Math.max(1, sets));
         rir = Math.min(4, Math.max(1, rir));
+        const cap = trial?.repCaps[slot.p];
+        const reps = cap && !ex.hold ? cap : repsFor(ex, slot.role, cfg, slot.p);
         return {
-          exerciseId: ex.id, name: titleCase(ex.name), pattern: slot.p, sets,
-          reps: repsFor(ex, slot.role, cfg, slot.p), rir,
-          restSec: slot.role === "main" ? cfg.mainRest : cfg.accRest,
+          exerciseId: ex.id, name: titleCase(ex.name), pattern: slot.p, sets, reps, rir,
+          restSec: circuit && slot.role === "acc" ? 15 : slot.role === "main" ? cfg.mainRest : cfg.accRest,
           hold: ex.hold || slot.p === "carry",
-          note: slot.role === "main" ? "Main lift: hit the top of the rep range on every set, then add a little weight next time." : undefined,
+          note: cap ? "Starting reps come from your movement check. Add reps as it gets easier."
+            : slot.role === "main" ? "Main lift: hit the top of the rep range on every set, then add a little weight next time."
+            : circuit ? "Circuit: go straight to the next accessory, rest about 60 s after each round." : undefined,
         };
       });
       const warmup: Prescription[] = warmupIds.map((id) => {
         const ex = getExercise(id)!;
-        return { exerciseId: id, name: titleCase(ex.name), pattern: "mobility", sets: 1, reps: ex.hold ? "30s / side" : "6-8 / side", rir: 4, restSec: 0, hold: ex.hold };
+        return { exerciseId: id, name: titleCase(ex.name), pattern: "mobility", sets: 1, reps: ex.hold || /stretch/.test(ex.name) ? "30s / side" : "6-8 / side", rir: 4, restSec: 0, hold: ex.hold };
       });
       let finisher: Prescription[] | undefined;
-      const wantsFinisher = t.key === "CD" || intake.primaryGoal === "fat_loss" || intake.primaryGoal === "endurance";
-      if (wantsFinisher && w !== 4) {
-        const c = pick("cardio", equip, targetTier(analysis.domains.cardio, analysis.level) + (t.key === "CD" ? 1 : 0), i, new Set(["c-brisk-walk"]));
+      const wantsFinisher = t.key === "CD" || intake.primaryGoal === "fat_loss" || intake.primaryGoal === "endurance" || cons.cardioStyle === "intervals";
+      if (wantsFinisher && !m?.deload) {
+        const walksOnly = cons.cardioStyle === "walks";
+        const c = walksOnly ? PATTERNS.cardio.find((x) => x.id === BRISK_WALK_ID)
+          : pick("cardio", { equip, excludeIds, excludeTags }, targetTier(analysis.domains.cardio, analysis.level) + (t.key === "CD" ? 1 : 0), i, new Set([BRISK_WALK_ID]));
         const ex = c && getExercise(c.id);
         if (ex) {
-          const hard = (analysis.domains.cardio ?? 2) >= 3 && !cautious;
-          finisher = ex.id === "c-brisk-walk" ? [{
-            exerciseId: ex.id, name: titleCase(ex.name), pattern: "cardio", sets: 1, reps: t.key === "CD" ? "20 min" : "10 min",
-            rir: 3, restSec: 0, hold: true, note: "Brisk, steady walk (or incline treadmill). Builds your aerobic base before intervals.",
+          const hard = (analysis.domains.cardio ?? 2) >= 3 && !cautious && !excludeTags.has("high_heart");
+          const short = cons.cardioStyle === "short";
+          finisher = ex.id === BRISK_WALK_ID ? [{
+            exerciseId: ex.id, name: titleCase(ex.name), pattern: "cardio", sets: 1, reps: t.key === "CD" && !short ? "20 min" : "10 min",
+            rir: 3, restSec: 0, hold: true, note: "Brisk, steady walk (outdoors or incline treadmill). Builds your aerobic base.",
           }] : [{
             exerciseId: ex.id, name: titleCase(ex.name), pattern: "cardio",
-            sets: t.key === "CD" ? (hard ? 8 : 6) : hard ? 6 : 5, reps: hard ? "40s on / 20s off" : "30s on / 30s off",
+            sets: short ? 4 : t.key === "CD" ? (hard ? 8 : 6) : hard ? 6 : 5, reps: hard ? "40s on / 20s off" : "30s on / 30s off",
             rir: 2, restSec: hard ? 20 : 30, hold: true,
-            note: t.key === "CD" ? "Interval block: hard but controlled, RPE 7-8." : "Short finisher. Skip if you are short on time or recovery is poor.",
+            note: t.key === "CD" ? "Interval block: hard but controlled, RPE 7-8." : "Short finisher. Skip it if you're short on time or recovery is poor.",
           }];
         }
       }
-      const work = main.reduce((m, p) => m + p.sets * (45 + p.restSec), 0) / 60;
+      const work = main.reduce((acc, p) => acc + p.sets * (45 + p.restSec), 0) / 60;
       return {
         key: `w${w}-d${i + 1}`, title: t.title, focus: t.focus, week: w, dayIndex: i, weekday: weekdays[i],
         warmup, main, finisher,
@@ -209,12 +249,30 @@ export function generateProgram(intake: Intake, analysis: Analysis, opts: { inte
     "Double progression: once you hit the top of the rep range on all sets, add the smallest weight jump (or a harder variation).",
     "Week 2 adds a set to main lifts, week 3 pushes intensity (lower RIR), week 4 is a deload to absorb the work.",
     "Pain over 3/10 or any sharp pain = stop that exercise and tell your coach.",
-    "Retest your fitness after 6-8 weeks to update your plan.",
+    "Retest your movement check after 4-6 weeks to update your plan.",
+  ];
+
+  const goalWhy: Record<Goal, string> = {
+    fat_loss: "Full-body strength keeps your muscle while you lose fat; short finishers add calorie burn without long cardio.",
+    muscle: "Moderate reps close to failure (8-12) and more sets each week: the proven recipe for toning and muscle.",
+    strength: "Lower reps on big lifts with longer rest to build strength, with accessories to stay balanced.",
+    endurance: "Higher reps, shorter rest and conditioning to build stamina.",
+    general: "A balanced mix of strength, cardio and mobility for health and energy.",
+    mobility: "Controlled strength through full range plus mobility drills in every session.",
+  };
+  const why = [
+    `${days} days a week, about ${intake.sessionMinutes} minutes each, ${split.name.toLowerCase()}: what you told me fits your week.`,
+    goalWhy[intake.primaryGoal],
+    ...(trial?.why ?? []),
+    ...cons.why,
   ];
 
   return {
-    version: 1,
+    version: 2,
     createdFor: { level: analysis.level, goal: intake.primaryGoal, daysPerWeek: days, sessionMinutes: intake.sessionMinutes, equipment: intake.equipment },
+    constraints: cons,
+    trial,
+    why,
     intensityOffset,
     split: split.name,
     weeks,

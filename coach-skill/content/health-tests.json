@@ -1,0 +1,17 @@
+{
+  "$comment": "Optional health tests after the movement trial. Scoring norms live in src/lib/science/tests.ts (see references/norms.md).",
+  "intro": "Optional extras: 3 quick health checks give me a fuller picture of your heart and flexibility. Skip any you can't do now.",
+  "tests": [
+    { "key": "restingHr", "title": "Resting heart rate", "measures": "Heart fitness and recovery", "equipment": "Phone timer or smartwatch", "timerSec": 60,
+      "steps": ["Sit quietly for 5 minutes (mornings are best).", "Find your pulse at your wrist or neck.", "Count beats for 60 seconds, or read your watch."], "unit": "bpm" },
+    { "key": "stepTest", "title": "3-minute step test", "measures": "Aerobic fitness (YMCA)", "equipment": "Bottom stair (about 30 cm)", "timerSec": 180, "metronomeBpm": 96, "vigorous": true,
+      "steps": ["Start the metronome: up, up, down, down on each beat.", "Step for 3 minutes.", "Sit down right away and count your pulse for 60 seconds."], "unit": "bpm (1-min recovery)",
+      "safety": "Skip if you have knee or balance problems or a health flag you haven't cleared with a doctor." },
+    { "key": "sitReach", "title": "Sit and reach", "measures": "Hamstring and lower-back flexibility", "equipment": "Tape measure",
+      "steps": ["Sit with legs straight, feet against a wall.", "Reach forward slowly with stacked hands and hold 2 seconds.", "Measure how far past your toes you reach (negative if short). Best of 3."], "unit": "cm past toes" },
+    { "key": "balance", "title": "Single-leg balance", "measures": "Balance and ankle stability", "equipment": "Timer, wall nearby", "timerSec": 45, "stopwatch": true,
+      "steps": ["Stand on one leg, hands on hips, eyes open.", "Time until you touch down (max 45 s).", "Test both legs and enter the weaker one."], "unit": "seconds" },
+    { "key": "waist", "title": "Waist measurement", "measures": "Waist-to-height ratio", "equipment": "Soft tape",
+      "steps": ["Breathe out normally.", "Measure around your belly button, snug but not tight."], "unit": "cm" }
+  ]
+}

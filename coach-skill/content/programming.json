@@ -1,0 +1,23 @@
+{
+  "$comment": "Programming rules used by src/lib/science/program.ts. See references/programming.md for the rationale.",
+  "goals": {
+    "strength": { "mainSets": 4, "mainReps": "4-6", "accSets": 3, "accReps": "8-10", "rir": 2, "mainRest": 150, "accRest": 90 },
+    "muscle": { "mainSets": 3, "mainReps": "8-12", "accSets": 3, "accReps": "10-15", "rir": 2, "mainRest": 90, "accRest": 60 },
+    "fat_loss": { "mainSets": 3, "mainReps": "10-12", "accSets": 3, "accReps": "12-15", "rir": 2, "mainRest": 60, "accRest": 45 },
+    "endurance": { "mainSets": 3, "mainReps": "12-15", "accSets": 2, "accReps": "15-20", "rir": 3, "mainRest": 45, "accRest": 30 },
+    "general": { "mainSets": 3, "mainReps": "8-12", "accSets": 2, "accReps": "10-15", "rir": 2, "mainRest": 75, "accRest": 60 },
+    "mobility": { "mainSets": 2, "mainReps": "10-12", "accSets": 2, "accReps": "12-15", "rir": 3, "mainRest": 60, "accRest": 45 }
+  },
+  "exercisesByMinutes": [{ "max": 20, "count": 3 }, { "max": 30, "count": 4 }, { "max": 45, "count": 5 }, { "max": 60, "count": 6 }, { "max": 999, "count": 7 }],
+  "defaultWeekdays": { "2": [1, 4], "3": [1, 3, 5], "4": [1, 2, 4, 5], "5": [1, 2, 3, 5, 6], "6": [1, 2, 3, 4, 5, 6] },
+  "mesocycle": [
+    { "week": 1, "label": "Learn the moves", "mainSetsDelta": 0, "rirDelta": 0 },
+    { "week": 2, "label": "Build", "mainSetsDelta": 1, "rirDelta": 0 },
+    { "week": 3, "label": "Push", "mainSetsDelta": 1, "rirDelta": -1 },
+    { "week": 4, "label": "Deload", "deload": true }
+  ],
+  "trialReps": {
+    "$comment": "Starting reps for a pattern when her trial result was low: a beginner who did 4 knee push-ups starts at 3x4-6, not 3x10-12.",
+    "lowThresholdFraction": 0.6
+  }
+}

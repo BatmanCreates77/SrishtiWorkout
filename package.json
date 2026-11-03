@@ -1,12 +1,15 @@
 {
-  "name": "opengym-coach",
+  "name": "srishti-workout",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "predev": "node scripts/build-data.mjs",
+    "prebuild": "node scripts/build-data.mjs",
+    "skill": "node scripts/build-data.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -26,5 +29,6 @@
     "eslint-config-next": "16.4.4",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "license": "AGPL-3.0-or-later"
 }

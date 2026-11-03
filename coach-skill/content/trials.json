@@ -1,0 +1,66 @@
+{
+  "$comment": "Movement trial = the fitness test she does during onboarding. Each trial uses an openGym exercise. `score` maps the result to a pattern tier (1 regression, 2 standard, 3 progression): the highest tier whose `min` the result reaches. `feel` adjusts it: couldnt -> tier 1 and switch to `easier`; hard -> at most tier 2; easy at top tier keeps 3. `pain` -> tier 1 and adds `painTags` to the plan's exclusions. `asTest` feeds the result into the scored fitness tests (norms in src/lib/science/tests.ts).",
+  "intro": "Time to move! I'll show you 6 simple exercises. Do each one as well as you can with good form, then tell me how it went. Warm up first: march on the spot for 2 minutes and do a few arm circles. Stop anything that hurts.",
+  "trials": [
+    {
+      "id": "squat", "pattern": "squat", "title": "Squat", "exerciseId": "1197", "easier": "10168", "harder": "1760",
+      "measure": "reps", "timerSec": 60,
+      "protocol": "Squat to a chair height and stand up fully, as many as you can in 60 seconds.",
+      "cues": ["Feet shoulder-width, toes slightly out", "Sit back like reaching for a chair", "Knees follow your toes", "Stand tall and squeeze your glutes"],
+      "formFlags": [{ "value": "knees_cave", "label": "Knees caved in" }, { "value": "heels_lift", "label": "Heels lifted" }, { "value": "forward_lean", "label": "Leaned far forward" }],
+      "score": [{ "min": 0, "tier": 1 }, { "min": 22, "tier": 2 }, { "min": 36, "tier": 3 }],
+      "painTags": ["deep_knee", "jump"], "asTest": "squat60"
+    },
+    {
+      "id": "push", "pattern": "hpush", "title": "Push-up", "exerciseId": "3211", "easier": "0659", "harder": "0662",
+      "measure": "reps",
+      "protocol": "Knee push-ups: as many as you can with good form, no rest. Chest to a fist's height from the floor each rep.",
+      "cues": ["Hands just wider than shoulders", "Straight line from head to knees", "Elbows at about 45 degrees", "Push the floor away"],
+      "formFlags": [{ "value": "hips_sag", "label": "Hips sagged" }, { "value": "half_reps", "label": "Couldn't go low" }, { "value": "wrist", "label": "Wrists uncomfortable" }],
+      "score": [{ "min": 0, "tier": 1 }, { "min": 6, "tier": 2 }, { "min": 18, "tier": 3 }],
+      "painTags": ["wrist"], "asTest": "pushups"
+    },
+    {
+      "id": "row", "pattern": "hpull", "title": "Row", "exerciseId": "3165", "easier": "3166", "harder": "2300",
+      "measure": "reps", "timerSec": 45,
+      "protocol": "Towel row: loop a towel around a sturdy door handle (door closed), lean back and pull yourself in. As many as you can in 45 seconds.",
+      "cues": ["Lean back with straight arms", "Pull your elbows back past your ribs", "Squeeze your shoulder blades", "Lower slowly"],
+      "formFlags": [{ "value": "shrug", "label": "Shoulders shrugged" }, { "value": "hips_bend", "label": "Hips bent" }],
+      "score": [{ "min": 0, "tier": 1 }, { "min": 15, "tier": 2 }, { "min": 28, "tier": 3 }],
+      "painTags": []
+    },
+    {
+      "id": "hinge", "pattern": "hinge", "title": "Glute bridge", "exerciseId": "3013", "easier": "3013", "harder": "0726",
+      "measure": "reps", "timerSec": 60,
+      "protocol": "Lie on your back, knees bent, and lift your hips. As many as you can in 60 seconds, with a 1-second squeeze at the top.",
+      "cues": ["Feet flat, hip-width apart", "Push through your heels", "Ribs down, don't arch your back", "Squeeze your glutes at the top"],
+      "formFlags": [{ "value": "back_arch", "label": "Felt it in my lower back" }, { "value": "hamstring_cramp", "label": "Hamstrings cramped" }],
+      "score": [{ "min": 0, "tier": 1 }, { "min": 20, "tier": 2 }, { "min": 35, "tier": 3 }],
+      "painTags": ["spine"]
+    },
+    {
+      "id": "lunge", "pattern": "lunge", "title": "Lunge", "exerciseId": "0612", "easier": "2368", "harder": "1460",
+      "measure": "reps", "timerSec": 60, "perSide": true,
+      "protocol": "Alternating lunges for 60 seconds. Count the reps on one leg. Hold a wall if you need balance.",
+      "cues": ["Long step, torso tall", "Lower until both knees are near 90 degrees", "Front knee over your foot", "Push back up through the front heel"],
+      "formFlags": [{ "value": "balance", "label": "Lost balance" }, { "value": "knee_in", "label": "Front knee caved in" }],
+      "score": [{ "min": 0, "tier": 1 }, { "min": 8, "tier": 2 }, { "min": 15, "tier": 3 }],
+      "painTags": ["deep_knee"]
+    },
+    {
+      "id": "plank", "pattern": "core", "title": "Plank", "exerciseId": "0463", "easier": "1241", "harder": "2135",
+      "measure": "seconds", "stopwatch": true,
+      "protocol": "Forearm plank: hold as long as you can with a straight body. Stop when your hips sag or rise. Drop to your knees if you need to and note it.",
+      "cues": ["Elbows under shoulders", "Squeeze your glutes", "Brace like someone's about to poke your belly", "Breathe steadily"],
+      "formFlags": [{ "value": "on_knees", "label": "Did it on my knees" }, { "value": "back_ache", "label": "Lower back ached" }],
+      "score": [{ "min": 0, "tier": 1 }, { "min": 30, "tier": 2 }, { "min": 75, "tier": 3 }],
+      "painTags": ["floor"], "asTest": "plank"
+    }
+  ],
+  "feelOptions": [
+    { "value": "easy", "label": "Easy", "hint": "Could do lots more" },
+    { "value": "right", "label": "Just right", "hint": "Challenging but OK" },
+    { "value": "hard", "label": "Hard", "hint": "Really tough" },
+    { "value": "couldnt", "label": "Couldn't do it", "hint": "Try the easier one" }
+  ]
+}
