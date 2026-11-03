@@ -57,7 +57,7 @@ export function NotifySetup({ prefs, onChange }: { prefs: NotifyPrefs; onChange:
       </div>
 
       <div className="rounded-2xl bg-surface p-4">
-        <div className="mb-2 text-sm font-semibold">Notifications on this phone</div>
+        <div className="mb-2 text-sm font-semibold">Notifications on this device</div>
         {status === "on" && (
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-good">✓ Turned on</span>
