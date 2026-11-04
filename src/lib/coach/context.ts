@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { adherence, currentWeek, daysSinceLastWorkout, nextSession, schedule, toISODate, type LogRow } from "@/lib/science/schedule";
 import type { Analysis, Intake, LogEntry, Program } from "@/lib/science/types";
 import { fill, pendingLater, type Answers } from "@/lib/onboarding";
+import { RATINGS, summarize } from "@/lib/science/benchmarks";
+import type { TrialResult } from "@/lib/science/types";
 
 export type CoachState = {
   userId: string;
@@ -12,6 +14,7 @@ export type CoachState = {
   programLogs: LogRow[];
   recentLogs: (LogRow & { program_id: string })[];
   answers?: Answers;
+  trials?: TrialResult[];
 };
 
 export async function loadState(sb: SupabaseClient, userId: string): Promise<CoachState> {
@@ -33,6 +36,7 @@ export async function loadState(sb: SupabaseClient, userId: string): Promise<Coa
     programLogs: program ? recentLogs.filter((l) => l.program_id === program.id) : [],
     recentLogs,
     answers: ((o.data?.onboarding as { answers?: Answers } | null)?.answers) ?? {},
+    trials: ((o.data?.onboarding as { trials?: TrialResult[] } | null)?.trials) ?? [],
   };
 }
 
@@ -97,6 +101,10 @@ export function buildContext(s: CoachState): string {
       return `${l.performed_at.slice(0, 10)} ${l.session_key} ${l.status}${l.session_rpe ? ` RPE ${l.session_rpe}` : ""}${skippedEx ? `, skipped ${skippedEx} exercises` : ""}${l.notes ? `, note: "${l.notes}"` : ""}`;
     });
     lines.push(`RECENT LOGS: ${recent.join(" | ") || "none"}`);
+  }
+  if (s.answers && s.trials?.length) {
+    const sum = summarize(s.trials, s.answers);
+    lines.push(`MOVEMENT CHECK VS NORMS (overall ${sum.overall}, target met ${sum.metCount}/${sum.evals.length}): ${sum.evals.map((e) => `${e.bench.title} ${e.value} ${e.bench.unit} = ${RATINGS[e.rating]} (typical ${e.bench.typicalText}, target ${e.bench.targetText}, ${e.bench.sourceKind})`).join("; ")}`);
   }
   if (s.answers) {
     const unknown = pendingLater(s.answers).slice(0, 6).map((q) => `${q.id}: "${fill(q.coach, s.answers!)}"`);

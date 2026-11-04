@@ -28,18 +28,18 @@ function lowerBetter(v: number, t: [number, number, number, number]): number {
 }
 
 // CSEP push-up norms (women: knee; men: full). Thresholds for excellent, very good, good, fair.
-const PUSHUP_F: [number, number, number, number][] = [
+export const PUSHUP_F: [number, number, number, number][] = [
   [30, 21, 15, 10], [27, 20, 13, 8], [24, 15, 11, 5], [21, 11, 7, 2], [17, 12, 5, 2],
 ];
-const PUSHUP_M: [number, number, number, number][] = [
+export const PUSHUP_M: [number, number, number, number][] = [
   [36, 29, 22, 17], [30, 22, 17, 12], [25, 17, 13, 10], [21, 13, 10, 7], [18, 11, 8, 5],
 ];
 
 // 1-minute squat (upper bound of categories): excellent, good, above average, average
-const SQUAT_F: [number, number, number, number][] = [
+export const SQUAT_F: [number, number, number, number][] = [
   [44, 37, 33, 29], [40, 33, 29, 25], [34, 27, 23, 18], [28, 22, 18, 13], [25, 18, 13, 10], [24, 17, 14, 11],
 ];
-const SQUAT_M: [number, number, number, number][] = [
+export const SQUAT_M: [number, number, number, number][] = [
   [50, 44, 39, 35], [46, 40, 35, 31], [42, 35, 30, 27], [37, 29, 25, 22], [33, 28, 24, 21], [29, 24, 20, 18],
 ];
 

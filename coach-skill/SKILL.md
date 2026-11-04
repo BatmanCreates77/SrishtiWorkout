@@ -1,8 +1,8 @@
 # Coach Maya: the coaching skill
 
 Everything the coach knows, asks and decides lives here. The app compiles this folder at build time
-(`scripts/build-skill.mjs` → `src/data/coach-skill.json` + `src/data/coach-prompts.json`), so **editing these
-files changes the app**. Then run `npm run skill` (or any build) to validate and recompile.
+(`scripts/build-data.mjs` → `src/data/coach-skill.json` + `src/data/coach-prompts.json`), so **editing these
+files changes the app**. Then run `node scripts/build-data.mjs` (runs before every dev and build) to validate and recompile.
 
 | File | What it controls |
 |---|---|

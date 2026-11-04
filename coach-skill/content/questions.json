@@ -87,6 +87,29 @@
    "stage": "essentials"
   },
   {
+   "id": "height",
+   "section": "you",
+   "kind": "number",
+   "field": "heightCm",
+   "unit": "cm",
+   "min": 120,
+   "max": 220,
+   "coach": "How tall are you? Height and weight let me compare your results fairly.",
+   "stage": "essentials"
+  },
+  {
+   "id": "weight",
+   "section": "you",
+   "kind": "number",
+   "field": "weightKg",
+   "unit": "kg",
+   "min": 30,
+   "max": 250,
+   "step": 0.1,
+   "coach": "And your current weight? It stays private and helps me read your results and set protein targets.",
+   "stage": "essentials"
+  },
+  {
    "id": "parq",
    "section": "health",
    "kind": "multi",
@@ -985,31 +1008,6 @@
      "label": "Mobility"
     }
    ],
-   "stage": "later",
-   "optional": true
-  },
-  {
-   "id": "height",
-   "section": "you",
-   "kind": "number",
-   "field": "heightCm",
-   "unit": "cm",
-   "min": 120,
-   "max": 220,
-   "coach": "How tall are you?",
-   "stage": "later",
-   "optional": true
-  },
-  {
-   "id": "weight",
-   "section": "you",
-   "kind": "number",
-   "field": "weightKg",
-   "unit": "kg",
-   "min": 30,
-   "max": 250,
-   "step": 0.1,
-   "coach": "And your current weight? It stays private and only helps me set protein and energy targets.",
    "stage": "later",
    "optional": true
   },

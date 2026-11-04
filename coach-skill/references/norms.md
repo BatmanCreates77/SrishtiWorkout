@@ -20,3 +20,17 @@ Movement faults on the squat test (NASM overhead-squat logic):
 - knees cave → glute-med work (side-lying abduction, monster walk)
 - heels lift → ankle dorsiflexion mobility, heel-elevated squats
 - excessive forward lean → goblet squat, hip-flexor/ankle mobility, core bracing
+
+## Movement-check targets (results screen, `src/lib/science/benchmarks.ts`)
+- Push-ups and 1-min squat use the CSEP / YMCA age-sex tables above. Push-ups are converted between knee and full (×1.6).
+- Plank uses the practical ranges above.
+- Glute bridge (60 s), lunge (60 s, per leg) and dumbbell row (45 s) have no published norm. They use coach benchmarks for adults under 40 (Fair/Good/Very good/Excellent from 15/22/30/38, 8/11/14/17 and 12/16/20/25), scaled ×0.9 for 40–49, ×0.8 for 50–59 and ×0.7 for 60+. The row is also scaled ×0.9 for women.
+- Target by training experience:
+
+  | Training experience | Target |
+  |---|---|
+  | None, or under 6 months | Good |
+  | 6 months – 2 years | Very good |
+  | Over 2 years | Excellent |
+
+  "Very fit" adds one level.

@@ -1,6 +1,8 @@
 "use client";
 // One movement trial (fitness test) from the coach skill: demo, cues, timer, result, feel, form, pain.
-import { skill, type Trial } from "@/lib/coach/skill";
+import { hasDemo, skill, type Trial } from "@/lib/coach/skill";
+import { matches, type Answers } from "@/lib/onboarding";
+import { benchmarkFor, RATINGS } from "@/lib/science/benchmarks";
 import { getExercise, titleCase } from "@/lib/science/program";
 import type { TrialResult } from "@/lib/science/types";
 import { CoachBubble } from "./CoachBubble";
@@ -8,25 +10,32 @@ import { ExerciseMedia } from "./ExerciseMedia";
 import { Timer } from "./Timer";
 import { cx } from "./ui";
 
-export function emptyTrial(t: Trial): TrialResult {
-  return { id: t.id, exerciseId: t.exerciseId, variant: "base", value: NaN, feel: "right", formFlags: [], pain: false };
+export function emptyTrial(t: Trial, answers?: Answers): TrialResult {
+  const easy = !!answers && !!t.startEasier?.length && t.startEasier.every((w) => matches(w, answers));
+  return { id: t.id, exerciseId: easy ? t.easier : t.exerciseId, variant: easy ? "easier" : "base", value: NaN, feel: "right", formFlags: [], pain: false };
 }
 
 export function trialComplete(r: TrialResult | undefined) {
   return !!r && (r.feel === "couldnt" || Number.isFinite(r.value));
 }
 
-export function TrialScreen({ t, r, onChange }: { t: Trial; r: TrialResult; onChange: (r: TrialResult) => void }) {
+export function TrialScreen({ t, r, onChange, answers }: { t: Trial; r: TrialResult; onChange: (r: TrialResult) => void; answers?: Answers }) {
   const ex = getExercise(r.exerciseId);
   const set = (patch: Partial<TrialResult>) => onChange({ ...r, ...patch });
   const variantId = (v: TrialResult["variant"]) => (v === "easier" ? t.easier : v === "harder" ? t.harder : t.exerciseId);
   const switchTo = (v: TrialResult["variant"]) => onChange({ ...r, variant: v, exerciseId: variantId(v), value: NaN, feel: "right", pain: false });
   const unit = t.measure === "seconds" ? "seconds" : t.perSide ? "reps per leg" : "reps";
   const struggling = r.feel === "couldnt" || r.pain;
+  const bench = answers ? benchmarkFor(t.id, r.variant, answers) : null;
 
   return (
     <div className="space-y-5">
-      <ExerciseMedia id={r.exerciseId} alt={ex?.name ?? t.title} />
+      {hasDemo(r.exerciseId) ? <ExerciseMedia id={r.exerciseId} alt={ex?.name ?? t.title} /> : (
+        <div>
+          <ExerciseMedia id={t.exerciseId} alt={ex?.name ?? t.title} />
+          <p className="mt-1.5 text-center text-xs text-muted">Photo shows the standard version. {r.exerciseId === "3211" ? "Do yours with your knees on the floor." : "Do the easier version described below."}</p>
+        </div>
+      )}
       <div>
         <div className="text-xs font-semibold uppercase tracking-wide text-accent">{t.title} check{r.variant !== "base" ? ` · ${r.variant} version` : ""}</div>
         <h2 className="text-2xl font-bold">{titleCase(ex?.name ?? t.title)}</h2>
@@ -41,6 +50,14 @@ export function TrialScreen({ t, r, onChange }: { t: Trial; r: TrialResult; onCh
         {r.variant !== "harder" && <button type="button" onClick={() => switchTo("harder")} className="min-h-10 rounded-full border border-line px-3 text-sm">Too easy? Harder version</button>}
         {r.variant !== "base" && <button type="button" onClick={() => switchTo("base")} className="min-h-10 rounded-full border border-line px-3 text-sm">Back to standard</button>}
       </div>
+
+      {bench && (
+        <div className="rounded-2xl bg-surface p-4 text-[15px]">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted">What to aim for</div>
+          <div className="mt-1"><b>Your target: {bench.targetText} {bench.unit}</b> <span className="text-muted">({RATINGS[bench.targetRating]} for {bench.who})</span></div>
+          <div className="text-sm text-muted">Typical for {bench.who}: {bench.typicalText} {bench.unit}</div>
+        </div>
+      )}
 
       {t.stopwatch ? <Timer onStop={(s) => set({ value: s })} /> : t.timerSec ? <Timer seconds={t.timerSec} /> : null}
 

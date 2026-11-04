@@ -5,5 +5,5 @@ description: Coach Maya's coaching skill for the Srishti Workout app — onboard
 
 The skill's content lives in `coach-skill/` at the repo root (so the app can compile it). Read
 `coach-skill/SKILL.md` first; it maps every file to what it controls. After editing, run
-`node scripts/build-skill.mjs` to validate ids and recompile `src/data/coach-skill.json`.
+`node scripts/build-data.mjs` to validate ids and recompile `src/data/coach-skill.json`.
 The science behind the numbers is in `coach-skill/references/` (norms.md, programming.md).

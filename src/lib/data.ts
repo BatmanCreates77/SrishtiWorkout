@@ -17,7 +17,7 @@ export type Proposal = {
 };
 
 export type OnboardingState = {
-  stage?: "questions" | "trial-intro" | "trials" | "debrief" | "options" | "notify";
+  stage?: "questions" | "trial-intro" | "trials" | "results" | "debrief" | "options" | "notify";
   qid?: string;
   chosenSplit?: string;
   qIndex?: number;

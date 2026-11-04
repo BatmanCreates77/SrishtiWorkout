@@ -10,6 +10,7 @@ import { CoachAvatar, CoachBubble } from "@/components/CoachBubble";
 import { ExerciseMedia } from "@/components/ExerciseMedia";
 import { NotifySetup } from "@/components/NotifySetup";
 import { QuestionScreen } from "@/components/QuestionScreen";
+import { ResultsScreen } from "@/components/ResultsScreen";
 import { emptyTrial, TrialScreen, trialComplete } from "@/components/TrialScreen";
 import { Button, cx, MiniMarkdown, Notice, Spinner } from "@/components/ui";
 import { skill, TRIALS, type Question } from "@/lib/coach/skill";
@@ -30,7 +31,7 @@ const Q_STAGE: Partial<Record<ObStage, Stage>> = { questions: "essentials", debr
 const MAX_FOLLOWUPS: Partial<Record<ObStage, number>> = { questions: 1, debrief: 2 };
 const STEPS = [
   { label: "About you", stages: ["questions"] },
-  { label: "Movement check", stages: ["trial-intro", "trials"] },
+  { label: "Movement check", stages: ["trial-intro", "trials", "results"] },
   { label: "Your plan", stages: ["debrief", "options", "notify"] },
 ] as const;
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -192,7 +193,8 @@ export default function OnboardingPage() {
     if (qStage && qPos > 0) { setLastReaction(null); setQid(visible[qPos - 1].id); update({ qid: visible[qPos - 1].id }); return; }
     if (stage === "trial-intro") return go({ stage: "questions" });
     if (stage === "trials") { const i = st!.trialIndex ?? 0; return i > 0 ? update({ trialIndex: i - 1 }) : go({ stage: "trial-intro" }); }
-    if (stage === "debrief") return go({ stage: "trials", trialIndex: TRIALS.length - 1 });
+    if (stage === "results") return go({ stage: "trials", trialIndex: TRIALS.length - 1 });
+    if (stage === "debrief") return go({ stage: "results" });
     if (stage === "options") { setOptions(null); return go({ stage: "debrief" }); }
     if (stage === "notify") return go({ stage: "options" });
   }
@@ -200,7 +202,7 @@ export default function OnboardingPage() {
   // ---- movement check --------------------------------------------------------------------
   const trialIdx = st.trialIndex ?? 0;
   const trial = TRIALS[trialIdx];
-  const trialResult: TrialResult = st.trials.find((r) => r.id === trial?.id) ?? emptyTrial(trial);
+  const trialResult: TrialResult = st.trials.find((r) => r.id === trial?.id) ?? emptyTrial(trial, st.answers);
   const setTrial = (r: TrialResult) => update({ trials: [...stRef.current!.trials.filter((x) => x.id !== r.id), r] });
 
   // ---- finish ------------------------------------------------------------------------------
@@ -222,7 +224,7 @@ export default function OnboardingPage() {
 
   // ---- layout ------------------------------------------------------------------------------
   const stepIdx = STEPS.findIndex((s) => (s.stages as readonly string[]).includes(stage));
-  const progress = qStage ? (qPos + 1) / Math.max(1, visible.length) : stage === "trials" ? (trialIdx + 1) / TRIALS.length : stage === "trial-intro" ? 0.05 : stage === "options" ? 0.75 : 1;
+  const progress = qStage ? (qPos + 1) / Math.max(1, visible.length) : stage === "trials" ? (trialIdx + 1) / TRIALS.length : stage === "results" ? 1 : stage === "trial-intro" ? 0.05 : stage === "options" ? 0.75 : 1;
   const subLabel = qStage ? `${qPos + 1} of ${visible.length}` : stage === "trials" ? `${trialIdx + 1} of ${TRIALS.length}` : "";
 
   let cta: { label: string; onClick: () => void; disabled?: boolean; secondary?: { label: string; onClick: () => void } } | null = null;
@@ -235,13 +237,14 @@ export default function OnboardingPage() {
       : { label: q.kind === "info" ? "Let's start" : a || !q.optional ? "Continue" : "Skip", onClick: next, disabled: !canContinue(q, a) };
   } else if (stage === "trial-intro") cta = { label: "I'm warmed up, let's go", onClick: () => update({ stage: "trials", trialIndex: 0 }) };
   else if (stage === "trials") cta = {
-    label: trialIdx < TRIALS.length - 1 ? "Next exercise" : "Done, tell me what you saw",
+    label: trialIdx < TRIALS.length - 1 ? "Next exercise" : "See my results",
     disabled: !trialComplete(trialResult),
     onClick: () => {
       if (!st.trials.find((x) => x.id === trialResult.id)) setTrial(trialResult);
-      if (trialIdx < TRIALS.length - 1) { update({ trialIndex: trialIdx + 1 }); window.scrollTo(0, 0); } else go({ stage: "debrief", qid: undefined });
+      if (trialIdx < TRIALS.length - 1) { update({ trialIndex: trialIdx + 1 }); window.scrollTo(0, 0); } else go({ stage: "results", qid: undefined });
     },
   };
+  else if (stage === "results") cta = { label: "Continue", onClick: () => go({ stage: "debrief", qid: undefined }) };
   else if (stage === "options") cta = chosen ? { label: `Go with ${chosen.name}`, onClick: () => go({ stage: "notify", chosenSplit: chosen.key }), disabled: !!programBlocked(chosen.built.intake) } : null;
   else if (stage === "notify") cta = { label: busy ? "Setting up…" : "Start training", onClick: startTraining, disabled: busy };
 
@@ -279,7 +282,7 @@ export default function OnboardingPage() {
 
         {!thinking && !followUp && qStage && q && (
           <>
-            {stage === "debrief" && qPos === 0 && <CoachBubble className="mb-4">Great job! A few quick questions about how that felt and what you want, then I&apos;ll show you plan options.</CoachBubble>}
+            {stage === "debrief" && qPos === 0 && <CoachBubble className="mb-4">Now a few quick questions about how that felt and what you want, then I&apos;ll show you plan options.</CoachBubble>}
             <QuestionScreen key={q.id} q={q} text={fill(q.coach, st.answers)} answer={st.answers[q.id]} onChange={setAnswer} onNext={next} reactionLine={lastReaction} />
           </>
         )}
@@ -295,11 +298,13 @@ export default function OnboardingPage() {
                 </div>
               ))}
             </div>
-            <Notice tone="accent">You&apos;ll need a chair, a towel and a door, and about 10 minutes. Stop anything that causes sharp pain.</Notice>
+            <Notice tone="accent">You&apos;ll need a chair, a pair of light dumbbells (or two full water bottles) and some floor space, about 10 minutes. Stop anything that causes sharp pain.</Notice>
           </div>
         )}
 
-        {stage === "trials" && trial && <TrialScreen key={trial.id} t={trial} r={trialResult} onChange={setTrial} />}
+        {stage === "trials" && trial && <TrialScreen key={trial.id} t={trial} r={trialResult} onChange={setTrial} answers={st.answers} />}
+
+        {stage === "results" && <ResultsScreen trials={st.trials} answers={st.answers} />}
 
         {stage === "options" && (options ? (
           <div className="space-y-4">

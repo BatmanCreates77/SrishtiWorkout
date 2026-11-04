@@ -10,7 +10,8 @@ export function trialsToTests(trials: TrialResult[]): TestResults {
   const out: TestResults = {};
   for (const t of trials) {
     if (t.id === "squat") out.squat60 = { reps: t.variant === "easier" ? Math.round(t.value * 0.7) : t.value, faults: [...t.formFlags, ...(t.pain ? ["pain"] : [])] };
-    if (t.id === "push") out.pushups = t.variant === "harder" ? { reps: t.value, variant: "full" } : { reps: t.variant === "easier" ? Math.round(t.value / 3) : t.value, variant: "knee" };
+    // base = full push-up, easier = knee, harder = decline (counted as full)
+    if (t.id === "push") out.pushups = t.variant === "easier" ? { reps: t.value, variant: "knee" } : { reps: t.value, variant: "full" };
     if (t.id === "plank") out.plank = t.variant === "easier" ? Math.min(t.value, 20) : t.formFlags.includes("on_knees") ? Math.round(t.value * 0.6) : t.value;
   }
   return out;

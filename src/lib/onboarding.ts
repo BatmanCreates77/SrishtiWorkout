@@ -53,9 +53,15 @@ export function canContinue(q: Question, a: Answer | undefined): boolean {
   return true; // not required: options are optional, free text is optional
 }
 
+/** First name, trimmed and capitalised ("  gaurav\n" → "Gaurav"). */
+export function firstName(answers: Answers): string {
+  const n = String(answers.name?.value ?? answers.name?.text ?? "").trim().split(/\s+/)[0] ?? "";
+  return n ? n[0].toUpperCase() + n.slice(1) : "";
+}
+
 export function fill(template: string, answers: Answers): string {
   return template
-    .replace(/\{name\}/g, String(answers.name?.value ?? answers.name?.text ?? "").split(" ")[0] || "there")
+    .replace(/\{name\}/g, firstName(answers) || "there")
     .replace(/\{answer:([a-z_]+)\}/g, (_, id) => String(answers[id]?.value ?? ""));
 }
 

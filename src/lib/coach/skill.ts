@@ -14,6 +14,8 @@ export type Trial = {
   measure: "reps" | "seconds"; timerSec?: number; stopwatch?: boolean; perSide?: boolean;
   protocol: string; cues: string[]; formFlags: { value: string; label: string }[];
   score: { min: number; tier: number }[]; painTags: string[]; asTest?: "squat60" | "pushups" | "plank";
+  /** start on the easier version when ALL of these hold (e.g. women new to training: knee push-ups) */
+  startEasier?: When[];
 };
 export type HealthTest = {
   key: "restingHr" | "stepTest" | "sitReach" | "balance" | "waist"; title: string; measures: string; equipment: string;
