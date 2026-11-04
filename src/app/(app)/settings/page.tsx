@@ -3,7 +3,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NotifySetup } from "@/components/NotifySetup";
 import { cx, Spinner } from "@/components/ui";
-import { getNotifyPrefs, getOnboarding, saveNotifyPrefs } from "@/lib/data";
+import { getNotifyPrefs, getOnboarding, resetMyData, saveNotifyPrefs } from "@/lib/data";
+import { IS_TEST } from "@/lib/env";
 import { DEFAULT_PREFS, disablePush, pushStatus, type NotifyPrefs } from "@/lib/push";
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -57,6 +58,12 @@ export default function SettingsPage() {
     window.location.reload();
   }
 
+  async function reset() {
+    if (!confirm("Wipe all test data (answers, plans, logs, chat) and start onboarding again?")) return;
+    try { await disablePush().catch(() => {}); await resetMyData(); window.location.assign("/onboarding"); }
+    catch (e) { alert(`Reset failed: ${(e as Error).message}`); }
+  }
+
   function logout() {
     if (!confirm("Log out on this device? You'll need the password to get back in.")) return;
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- route handler clears the cookies
@@ -94,6 +101,7 @@ export default function SettingsPage() {
           <Section title="Account">
             <div className="divide-y divide-line rounded-2xl bg-surface">
               {pushOn && <Row onClick={stopPush} label="Stop notifications on this device" />}
+              {IS_TEST && <Row onClick={reset} label="Reset test data" hint="Test environment only: start from a clean slate" danger />}
               <Row onClick={logout} label="Log out" hint="Locks this device until the password is entered again" danger />
             </div>
           </Section>

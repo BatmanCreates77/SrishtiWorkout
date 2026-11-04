@@ -16,12 +16,14 @@ function ipOf(req: Request) {
   return (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
 }
 
+const TEST = process.env.NEXT_PUBLIC_APP_ENV === "test";
+
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 function page(opts: { next: string; error?: string; status?: number }) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow"><title>Srishti Workout · Locked</title>
+<meta name="robots" content="noindex,nofollow"><title>${TEST ? "TEST · " : ""}Srishti Workout · Locked</title>
 <style>
 :root{--bg:#faf7f4;--surface:#fff;--ink:#1d1a17;--muted:#6f665e;--line:#e7dfd7;--accent:#c8435a;--accent-ink:#fff;--warn:#b26a00;--warn-soft:#fdf0dc;color-scheme:light}
 @media (prefers-color-scheme:dark){:root{--bg:#14110f;--surface:#1d1916;--ink:#f2ece6;--muted:#a99d92;--line:#352e28;--accent:#ec6a80;--accent-ink:#1a0b0e;--warn:#f0b155;--warn-soft:#3a2b14;color-scheme:dark}}
@@ -32,7 +34,7 @@ input{width:100%;font-size:17px;padding:14px 16px;border-radius:14px;border:1px 
 button{margin-top:14px;width:100%;min-height:52px;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:700;cursor:pointer}
 .err{background:var(--warn-soft);color:var(--warn);padding:10px 14px;border-radius:12px;font-size:14px;margin-bottom:16px}
 </style></head><body><main>
-<div class="logo">S</div><h1>Srishti Workout</h1><p>Enter the password to open your workouts.</p>
+<div class="logo">S</div><h1>Srishti Workout${TEST ? ' <span style="background:#f59e0b;color:#000;font-size:12px;padding:2px 8px;border-radius:99px;vertical-align:middle">TEST</span>' : ""}</h1><p>Enter the password to open your workouts.</p>
 ${opts.error ? `<div class="err" role="alert">${esc(opts.error)}</div>` : ""}
 <form method="post" action="/unlock" autocomplete="on">
 <input type="hidden" name="next" value="${esc(opts.next)}">

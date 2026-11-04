@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { getOnboarding } from "@/lib/data";
+import { IS_TEST } from "@/lib/env";
 import { supabase } from "@/lib/supabase/client";
 import { CoachSheet } from "./CoachSheet";
 import { cx, Spinner } from "./ui";
@@ -73,6 +74,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link href="/home" className="flex items-center gap-2 font-bold">
                   <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-sm text-accent-ink">S</span>
                   Srishti Workout
+                  {IS_TEST && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-black">TEST</span>}
                 </Link>
                 <Link href="/settings" aria-label="Settings" className={cx("grid h-11 w-11 place-items-center rounded-full border border-line", isActive(path, "/settings") ? "bg-accent text-accent-ink border-accent" : "bg-surface")}>
                   <Icon d={GEAR} className="h-5 w-5" />
@@ -84,6 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link href="/home" className="mb-6 flex items-center gap-2 px-2 pt-2 text-lg font-bold">
                 <span className="grid h-9 w-9 place-items-center rounded-full bg-accent text-accent-ink">S</span>
                 Srishti Workout
+                {IS_TEST && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-black">TEST</span>}
               </Link>
               <nav className="grid gap-1">
                 {NAV.map((n) => (

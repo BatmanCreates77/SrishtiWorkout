@@ -188,3 +188,16 @@ export async function saveLaterAnswer(questionId: string, answer: import("./onbo
   if (error) throw error;
   return next;
 }
+
+/** Test environment only: wipe this account's data so onboarding starts over. */
+export async function resetMyData() {
+  const sb = supabase();
+  const id = await uid();
+  await sb.from("programs").update({ parent_id: null }).eq("user_id", id);
+  for (const t of ["coach_proposals", "chat_messages", "notification_log", "push_subscriptions", "workout_logs", "assessments", "intakes", "programs"]) {
+    const { error } = await sb.from(t).delete().eq("user_id", id);
+    if (error) throw error;
+  }
+  const { error } = await sb.from("profiles").update({ onboarding: {}, onboarding_completed_at: null, notify: {} }).eq("id", id);
+  if (error) throw error;
+}
