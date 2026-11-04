@@ -3,7 +3,8 @@ import { GYM_EQUIPMENT, type EquipKey } from "./science/patterns";
 import type { Intake } from "./science/types";
 import { QUESTIONS, type Question, type When } from "./coach/skill";
 
-export type Answer = { value?: unknown; text?: string; skipped?: boolean; at?: string };
+/** inferred: pre-filled by Maya from her free text (she can change it). interpreted: the text already read by the AI. */
+export type Answer = { value?: unknown; text?: string; skipped?: boolean; at?: string; inferred?: boolean; interpreted?: string };
 export type Stage = Question["stage"];
 export type Answers = Record<string, Answer>;
 

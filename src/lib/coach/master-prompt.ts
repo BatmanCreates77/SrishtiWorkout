@@ -7,4 +7,5 @@ const P = prompts as Record<string, string>;
 
 export const MASTER_PROMPT = [P.persona, P.checkin].filter(Boolean).join("\n\n");
 export const FOLLOWUP_PROMPT = P.followups ?? "";
+export const INTERPRET_PROMPT = P.interpret ?? "";
 export const ANALYSIS_PROMPT = `${P.persona}\n\n${P.analysis ?? ""}`;

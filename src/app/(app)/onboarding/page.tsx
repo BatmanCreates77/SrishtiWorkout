@@ -18,6 +18,7 @@ import {
   activateProgram, completeOnboarding, getOnboarding, saveAssessment, saveIntake, saveNotifyPrefs, saveOnboarding, type OnboardingState,
 } from "@/lib/data";
 import { answersToIntake, canContinue, fill, reaction, visibleQuestions, type Answer, type Stage } from "@/lib/onboarding";
+import { applyInterpretation, interpretAnswer, needsInterpret } from "@/lib/interpret";
 import { planOptions, type PlanOption } from "@/lib/plan-builder";
 import { DEFAULT_PREFS, type NotifyPrefs } from "@/lib/push";
 import { programBlocked } from "@/lib/science/analysis";
@@ -112,7 +113,8 @@ export default function OnboardingPage() {
   const afterQuestions = (from: ObStage) => go(from === "questions" ? { stage: "trial-intro", qid: undefined } : { stage: "options", qid: undefined });
 
   // ---- questions ---------------------------------------------------------------------
-  const setAnswer = (a: Answer) => update({ answers: { ...stRef.current!.answers, [q!.id]: a } });
+  // her own edit replaces anything Maya pre-filled
+  const setAnswer = (a: Answer) => update({ answers: { ...stRef.current!.answers, [q!.id]: { ...a, inferred: false } } });
 
   async function maybeFollowUp(section: string): Promise<FollowUp | null> {
     const s = stRef.current!;
@@ -153,12 +155,24 @@ export default function OnboardingPage() {
   }
 
   async function next() {
-    const s = stRef.current!;
-    const vis = visibleQuestions(s.answers, [qStage!]);
-    const cur = vis.find((x) => x.id === qid) ?? vis[0];
+    let s = stRef.current!;
+    const cur = visibleQuestions(s.answers, [qStage!]).find((x) => x.id === qid) ?? visibleQuestions(s.answers, [qStage!])[0];
     if (!canContinue(cur, s.answers[cur.id])) return;
-    const nq = vis[vis.indexOf(cur) + 1];
-    setLastReaction(reaction(cur, s.answers[cur.id]));
+    // Her free text is read by Maya: it can refine this answer and pre-fill later questions it already answers.
+    let note: string | null = null;
+    if (needsInterpret(s.answers, cur.id)) {
+      setThinking(true);
+      const r = await interpretAnswer(cur.id, s.answers);
+      setThinking(false);
+      const answers = applyInterpretation(s.answers, cur.id, r);
+      const followups = r?.keep ? [...s.followups, { section: cur.section, ask: `In her own words: ${fill(cur.coach, s.answers).slice(0, 90)}`, answer: r.keep }] : s.followups;
+      update({ answers, followups });
+      s = stRef.current!;
+      note = r?.note ?? null;
+    }
+    const vis = visibleQuestions(s.answers, [qStage!]);
+    const nq = vis[vis.indexOf(vis.find((x) => x.id === cur.id) ?? cur) + 1];
+    setLastReaction(note ?? reaction(cur, s.answers[cur.id]));
     if (!nq || nq.section !== cur.section) {
       const fu = await maybeFollowUp(cur.section);
       if (fu) { setFollowUp(fu); setFuAnswer({}); return; }
@@ -231,10 +245,11 @@ export default function OnboardingPage() {
   if (followUp) cta = { label: "Continue", onClick: answerFollowUp, disabled: !fuAnswer.value && !fuAnswer.text?.trim(), secondary: { label: "Skip", onClick: continueAfterFollowUp } };
   else if (qStage && q) {
     const a = st.answers[q.id];
-    const tapToGo = q.kind === "single" || q.kind === "scale" || q.kind === "scale10";
-    cta = tapToGo
-      ? (a?.text?.trim() ? { label: "Continue", onClick: next, disabled: !canContinue(q, a) } : !q.required && a?.value === undefined ? { label: "Skip", onClick: next } : null)
-      : { label: q.kind === "info" ? "Let's start" : a || !q.optional ? "Continue" : "Skip", onClick: next, disabled: !canContinue(q, a) };
+    const answered = a?.value !== undefined || !!a?.text?.trim();
+    // no tap-to-advance: she can always add her own words to a selection before continuing
+    cta = q.kind === "info" ? { label: "Let's start", onClick: next }
+      : answered || q.required ? { label: "Continue", onClick: next, disabled: !canContinue(q, a) }
+      : { label: "Skip", onClick: next };
   } else if (stage === "trial-intro") cta = { label: "I'm warmed up, let's go", onClick: () => update({ stage: "trials", trialIndex: 0 }) };
   else if (stage === "trials") cta = {
     label: trialIdx < TRIALS.length - 1 ? "Next exercise" : "See my results",

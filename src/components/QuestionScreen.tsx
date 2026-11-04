@@ -19,8 +19,6 @@ export function QuestionScreen({
 
   const pickSingle = (v: Option["value"]) => {
     onChange({ ...answer, value: v });
-    // tap-to-advance, unless she has started typing her own answer
-    if (!answer?.text?.trim()) { nextTimer.current = setTimeout(onNext, 280); }
   };
   const toggleMulti = (v: Option["value"], exclusive?: boolean) => {
     const cur = Array.isArray(value) ? (value as unknown[]) : [];
@@ -36,6 +34,9 @@ export function QuestionScreen({
     <div className="space-y-5">
       {reactionLine && <CoachBubble className="opacity-90"><span className="text-[15px]">{reactionLine}</span></CoachBubble>}
       <CoachBubble><MiniMarkdown text={text} /></CoachBubble>
+      {answer?.inferred && answer.value !== undefined && (
+        <p className="-mt-2 rounded-xl bg-accent-soft px-3 py-2 text-sm text-accent">From what you told me earlier, I&apos;ve picked this for you. Change it if I got it wrong.</p>
+      )}
 
       {q.kind === "single" && (
         <div className="grid gap-2.5">

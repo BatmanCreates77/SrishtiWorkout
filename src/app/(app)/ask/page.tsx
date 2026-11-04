@@ -10,6 +10,7 @@ import { Button, Spinner } from "@/components/ui";
 import { getOnboarding, saveIntake, saveLaterAnswer, saveOnboarding, type OnboardingState } from "@/lib/data";
 import { answersToIntake, canContinue, fill, pendingLater, reaction, type Answer } from "@/lib/onboarding";
 import type { Question } from "@/lib/coach/skill";
+import { applyInterpretation, interpretAnswer } from "@/lib/interpret";
 
 export default function AskPage() {
   const router = useRouter();
@@ -30,9 +31,18 @@ export default function AskPage() {
   async function save(skip = false) {
     if (!q) return;
     setSaving(true);
-    const s = await saveLaterAnswer(q.id, skip ? { skipped: true } : answer);
+    let s: OnboardingState;
+    let note: string | null = null;
+    if (!skip && answer.text?.trim() && st) {
+      // Maya reads her words: refines this answer and fills in other open questions they already answer
+      const merged = { ...st.answers, [q.id]: { ...answer, at: new Date().toISOString() } };
+      const r = await interpretAnswer(q.id, merged);
+      s = { ...st, answers: applyInterpretation(merged, q.id, r), followups: r?.keep ? [...st.followups, { section: q.section, ask: `In her own words: ${fill(q.coach, st.answers).slice(0, 90)}`, answer: r.keep }] : st.followups };
+      await saveOnboarding(s);
+      note = r?.note ?? null;
+    } else s = await saveLaterAnswer(q.id, skip ? { skipped: true } : answer);
     await saveIntake(answersToIntake(s.answers, s.followups)).catch(() => {});
-    setReact(skip ? null : reaction(q, answer));
+    setReact(skip ? null : note ?? reaction(q, answer));
     // one tailored follow-up for probing questions or free-text answers
     if (!skip && (q.probe || answer.text?.trim())) {
       const res = await fetch("/api/coach/followup", {
@@ -79,7 +89,7 @@ export default function AskPage() {
       ) : q ? (
         <>
           <QuestionScreen key={q.id} q={q} text={fill(q.coach, st.answers)} answer={answer} onChange={setAnswer} onNext={() => {}} />
-          {footer({ label: saving ? "Saving…" : "Save", onClick: () => save(), disabled: !(answer.text?.trim() || (Array.isArray(answer.value) ? answer.value.length : answer.value !== undefined)) || !canContinue({ ...q, required: false }, answer) }, { label: "Skip", onClick: () => save(true) })}
+          {footer({ label: saving ? (answer.text?.trim() ? "Maya is reading…" : "Saving…") : "Save", onClick: () => save(), disabled: !(answer.text?.trim() || (Array.isArray(answer.value) ? answer.value.length : answer.value !== undefined)) || !canContinue({ ...q, required: false }, answer) }, { label: "Skip", onClick: () => save(true) })}
         </>
       ) : (
         <>
