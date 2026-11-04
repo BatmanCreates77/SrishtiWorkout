@@ -78,7 +78,7 @@ export default function LibraryPage() {
         ))}
       </div>
       {list.length === 60 && <p className="text-center text-xs text-muted">Showing 60. Search or filter to narrow down.</p>}
-      <p className="text-center text-[11px] text-muted">Exercise data: openGym (AGPL). Demo photos: free-exercise-db (public domain).</p>
+      <p className="text-center text-[11px] text-muted">Exercise data: openGym (AGPL). Demo photos: free-exercise-db (public domain). Videos: wger.de contributors (CC BY-SA 4.0).</p>
 
       {open && (
         <div className="fixed inset-0 z-40 flex flex-col justify-end bg-black/40" onClick={() => setOpen(null)}>

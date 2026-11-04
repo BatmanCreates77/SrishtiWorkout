@@ -1,0 +1,16 @@
+{
+  "$comment": "Real exercise videos from wger.de (CC BY-SA 4.0). openGym id -> wger video id, with the segment to keep (seconds). Each was checked by eye: steady camera, correct exercise. Run `node scripts/build-videos.mjs` after editing; it downloads, trims and compresses into public/video/ (committed, since the hosting build has no ffmpeg).",
+  "map": {
+    "0289": { "wger": 17, "start": 1, "dur": 7 },
+    "0294": { "wger": 48, "start": 1, "dur": 7 },
+    "0313": { "wger": 51, "start": 1, "dur": 7 },
+    "0868": { "wger": 50, "start": 1, "dur": 7 },
+    "0336": { "wger": 31, "start": 1, "dur": 8 },
+    "0380": { "wger": 7, "start": 0.5, "dur": 6 },
+    "0739": { "wger": 44, "start": 2, "dur": 8 },
+    "1459": { "wger": 2, "start": 1, "dur": 8 },
+    "0861": { "wger": 1, "start": 1, "dur": 7 },
+    "0603": { "wger": 11, "start": 1, "dur": 7 },
+    "1409": { "wger": 72, "start": 2, "dur": 8 }
+  }
+}

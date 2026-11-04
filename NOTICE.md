@@ -16,3 +16,9 @@ served** by this app.
 `vendor/free-exercise-db` is a git submodule of [yuhonas/free-exercise-db](https://github.com/yuhonas/free-exercise-db),
 released under the Unlicense (public domain). The build copies the start/end photos of mapped exercises to
 `public/demo/`. The mapping (openGym id → free-exercise-db id) is hand-checked in `coach-skill/content/media-map.json`.
+
+## Exercise videos
+Short clips in `public/video/` are trimmed and compressed from videos on [wger.de](https://wger.de)
+by their authors (credited on each clip and in `src/data/video-credits.json`), licensed
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Changes: trimmed, scaled to 480×270, re-encoded, audio removed.
+Mapping and segments: `coach-skill/content/video-map.json`; rebuild with `node scripts/build-videos.mjs`.

@@ -55,3 +55,12 @@
 html, body { background: var(--bg); color: var(--ink); }
 body { font-family: var(--font-geist-sans), system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
 input, select, textarea { font-size: 16px; }
+
+/* Exercise demo: hold the start pose, ease into the end pose, hold, ease back (2 photos). */
+@keyframes demo-swap {
+  0%, 30% { opacity: 0; }
+  50%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.demo-swap { opacity: 0; animation: demo-swap 3.2s cubic-bezier(0.45, 0, 0.55, 1) infinite; will-change: opacity; }
+@media (prefers-reduced-motion: reduce) { .demo-swap { animation: none; } }
